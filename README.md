@@ -1,9 +1,27 @@
 # ZhuchkaKeyboards auth
 
+OAuth2/OIDC authorization server for ZhuchkaKeyboards: **JWT (RS256)**, **JWKS**, **token** (`client_credentials`, `password`, `refresh_token`), **userinfo**, admin API for users. See `docs/microservices/01-auth.md` in the parent monorepo.
+
 Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fastapi-template) (systemd unit and GitHub Actions workflow removed).
 
+### Auth API (summary)
 
-A production-ready FastAPI boilerplate designed for rapid project setup — featuring clean architecture, Docker support, logging and INI-based configuration.
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /.well-known/openid-configuration` | OIDC discovery |
+| `GET /.well-known/jwks.json` | Public keys for JWT verification |
+| `POST /oauth/token` | Token (form body: `grant_type`, client auth Basic or `client_id`/`client_secret`) |
+| `POST /oauth/revoke` | Revoke refresh token |
+| `GET /oauth/userinfo` | OIDC userinfo (Bearer access token) |
+| `GET /oauth/authorize` | Stub until PKCE UI (returns `unsupported_response_type`) |
+| `GET /health/live`, `GET /health/ready` | Liveness / readiness |
+| `POST /api/v1/users`, `GET /api/v1/users` | Admin only (Bearer with `admin` scope) |
+
+**Bootstrap (dev):** set `[AUTH]` `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`, and `BOOTSTRAP_CLIENT_SECRET` in `config.ini`. On startup the service creates roles, a confidential OAuth client (`BOOTSTRAP_CLIENT_ID`), and an admin user. RSA key for JWT is created under `var/jwt_private.pem` if `AUTH_JWT_PRIVATE_KEY_PEM` is not set.
+
+**Migrations:** `alembic upgrade head` (from repo root with `alembic.ini` / `config.ini` configured). Requires PostgreSQL with `pgcrypto` or `gen_random_uuid()` (PostgreSQL 13+).
+
+**Python:** use **3.11–3.13** for local venv; 3.14 may lack wheels for some dependencies.
 
 ## Features
 
