@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -19,12 +20,14 @@ router = APIRouter(dependencies=[Depends(require_admin_scope)])
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+    identity_kind: Literal["customer", "staff"] = "staff"
 
 
 class UserOut(BaseModel):
     id: UUID
     email: str
     is_active: bool
+    identity_kind: str
 
     model_config = {"from_attributes": True}
 
@@ -35,7 +38,12 @@ async def create_user(session: DbSession, body: UserCreate) -> User:
     r = await session.execute(select(User).where(User.email == email))
     if r.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="email_exists")
-    user = User(email=email, password_hash=hash_password(body.password), is_active=True)
+    user = User(
+        email=email,
+        identity_kind=body.identity_kind,
+        password_hash=hash_password(body.password),
+        is_active=True,
+    )
     session.add(user)
     await session.flush()
     rr = await session.execute(select(Role).where(Role.name == "user"))

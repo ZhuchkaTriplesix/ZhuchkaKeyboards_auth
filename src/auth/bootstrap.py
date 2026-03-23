@@ -56,6 +56,7 @@ async def _ensure_bootstrap_admin(session: AsyncSession) -> None:
         return
     user = User(
         email=email,
+        identity_kind="staff",
         password_hash=hash_password(auth_cfg.bootstrap_admin_password),
         is_active=True,
     )
