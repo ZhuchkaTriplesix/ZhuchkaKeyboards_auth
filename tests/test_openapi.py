@@ -18,6 +18,12 @@ def test_openapi_json_schema():
     assert "/oauth/token" in paths
     assert "/.well-known/openid-configuration" in paths
     assert "/api/v1/users" in paths
+    assert "/api/v1/users/{user_id}" in paths
+    assert "/api/v1/users/{user_id}/roles" in paths
+    assert "/api/v1/users/{user_id}/mfa" in paths
+    assert "/api/v1/roles" in paths
+    assert "/api/v1/clients" in paths
+    assert "/api/v1/clients/{client_pk}" in paths
     assert "BearerAuth" in body["components"]["securitySchemes"]
     tags = {t["name"] for t in body.get("tags", [])}
     assert "admin" in tags
