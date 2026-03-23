@@ -116,8 +116,6 @@ class RefreshToken(Base):
         Uuid(as_uuid=True), ForeignKey("refresh_token.id"), nullable=True
     )
 
-    client: Mapped[OAuthClient] = relationship(OAuthClient, foreign_keys=[client_db_id])
-
 
 class LoginAudit(Base):
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
