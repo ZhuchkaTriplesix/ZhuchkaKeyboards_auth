@@ -4,7 +4,7 @@ OAuth2/OIDC authorization server for ZhuchkaKeyboards: **JWT (RS256)**, **JWKS**
 
 Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fastapi-template) (upstream systemd unit removed; this repo has its own CI).
 
-**CI:** on push/PR to `dev`, GitHub Actions runs **ruff** (lint + format check), **pytest** with coverage, and **docker build** (`docker/Dockerfile`). Dev tools: `pip install -r requirements-dev.txt`.
+**CI:** on push/PR to `dev`, GitHub Actions runs **ruff** (lint + format check), **pytest** with coverage, **docker build** (`docker/Dockerfile`), and a separate job **integration-tests** (PostgreSQL service, migrations, `pytest -m integration`). Dev tools: `pip install -r requirements-dev.txt`.
 
 **OpenAPI 3.x:** `GET /api/openapi.json` — machine-readable spec (tags, `BearerAuth` security scheme). `GET /api/docs` serves Swagger UI (Basic auth placeholder in `src/main.py`).
 
@@ -164,7 +164,8 @@ make up             # Start production environment
 make down           # Stop all containers
 make logs           # Show logs
 make clean          # Remove containers and volumes
-make test           # Run tests
+make test           # Run tests (integration skipped unless INTEGRATION_TEST=1)
+make test-integration # DB integration tests (Unix; needs Postgres + alembic upgrade head)
 make lint           # Run linter
 make format         # Format code
 make migrate        # Apply migrations
@@ -237,7 +238,7 @@ PASSWORD =
 ## Testing
 
 ```bash
-# Run all tests
+# Run all tests (markers @pytest.mark.integration are skipped unless INTEGRATION_TEST=1)
 make test
 
 # Run with coverage
@@ -245,6 +246,20 @@ pytest --cov=src --cov-report=html
 
 # Run specific test
 pytest tests/test_api.py -v
+```
+
+**Integration tests** hit a real PostgreSQL database (`/health/ready`, OAuth flows that need the DB). Prerequisites: `config.ini` from `config.ini.example` with a reachable `[POSTGRES]` block, then `alembic upgrade head`.
+
+```bash
+# Linux/macOS (GNU make sets INTEGRATION_TEST for this target)
+make test-integration
+```
+
+On **Windows** (PowerShell), set the variable and run pytest:
+
+```powershell
+$env:INTEGRATION_TEST = "1"
+pytest tests/ -v -m integration
 ```
 
 ## Development

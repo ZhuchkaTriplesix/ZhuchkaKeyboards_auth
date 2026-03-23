@@ -49,3 +49,61 @@ jobs:
 
       - name: Docker build
         run: docker build -f docker/Dockerfile -t zhuchka-auth:ci .
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      INTEGRATION_TEST: "1"
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: fastapi_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d fastapi_db"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Config for CI Postgres
+        run: |
+          cp config.ini.example config.ini
+          cp alembic.ini.example alembic.ini
+          python - <<'PY'
+          import configparser
+          c = configparser.ConfigParser()
+          c.read("config.ini")
+          c["POSTGRES"]["PASSWORD"] = "postgres"
+          c["POSTGRES"]["DATABASE_NAME"] = "fastapi_db"
+          c["POSTGRES"]["IP"] = "localhost"
+          c["POSTGRES"]["USERNAME"] = "postgres"
+          with open("config.ini", "w") as f:
+              c.write(f)
+          PY
+
+      - name: Alembic upgrade
+        run: alembic upgrade head
+
+      - name: Integration pytest
+        run: pytest tests/ -v -m integration
