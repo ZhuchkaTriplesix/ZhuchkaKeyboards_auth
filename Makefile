@@ -1,4 +1,4 @@
-.PHONY: help install install-dev dev build up down logs clean test lint format
+.PHONY: help install install-dev dev build up down logs clean test test-integration lint format
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -32,8 +32,11 @@ clean: ## Remove containers, volumes, and images
 	docker compose -f docker/docker-compose.yml down -v --rmi all
 	docker compose -f docker/docker-compose.dev.yml down -v --rmi all
 
-test: ## Run tests
+test: ## Run tests (integration tests skipped unless INTEGRATION_TEST=1)
 	pytest tests/ -v --cov=src --cov-report=html
+
+test-integration: ## Run DB integration tests (needs PostgreSQL + migrations; set INTEGRATION_TEST=1)
+	INTEGRATION_TEST=1 pytest tests/ -v -m integration
 
 lint: ## Run linter
 	ruff check .
