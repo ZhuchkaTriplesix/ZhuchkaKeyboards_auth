@@ -9,6 +9,7 @@ from starlette.middleware.cors import CORSMiddleware
 from src.auth.bootstrap import run_bootstrap
 from src.database.core import async_session_maker
 from src.database.dependencies import DbSession
+from src.openapi_config import OPENAPI_TAGS, apply_openapi
 from src.routers import Router
 
 logging.basicConfig(
@@ -37,9 +38,11 @@ class App:
             docs_url=None,
             redoc_url=None,
             openapi_url="/api/openapi.json",
+            openapi_tags=OPENAPI_TAGS,
             default_response_class=ORJSONResponse,
             lifespan=_lifespan,
         )
+        apply_openapi(self._app)
         self._app.add_middleware(
             middleware_class=CORSMiddleware,
             allow_origins=["*"],
