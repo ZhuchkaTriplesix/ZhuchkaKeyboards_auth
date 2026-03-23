@@ -1,15 +1,13 @@
 import logging
 import secrets
 
-import uvicorn
-
 from fastapi import Depends, HTTPException
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.security import HTTPBasicCredentials, HTTPBasic
 from starlette import status
 from starlette.responses import HTMLResponse
 
-from src.config import uvicorn_cfg
+from src.config import run_granian_app
 from src.configuration.app import App
 from src.middlewares import db_session_middleware
 
@@ -44,11 +42,4 @@ async def get_docs(username: str = Depends(get_current_username)) -> HTMLRespons
 
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "src.main:app",
-        host=uvicorn_cfg.host,
-        port=uvicorn_cfg.port,
-        workers=uvicorn_cfg.workers,
-        loop=uvicorn_cfg.loop,
-        http=uvicorn_cfg.http
-    )
+    run_granian_app("src.main:app")

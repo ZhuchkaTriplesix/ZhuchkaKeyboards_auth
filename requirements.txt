@@ -1,7 +1,7 @@
 SQLAlchemy~=2.0.43
 alembic~=1.16.5
 asyncpg~=0.30.0
-uvicorn~=0.37.0
+granian~=2.0
 fastapi~=0.118.0
 python_multipart~=0.0.20
 redis~=5.3.1
