@@ -6,6 +6,8 @@ Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fast
 
 **CI:** on push/PR to `dev`, GitHub Actions runs **ruff** (lint + format check), **pytest** with coverage, and **docker build** (`docker/Dockerfile`). Dev tools: `pip install -r requirements-dev.txt`.
 
+**OpenAPI 3.x:** `GET /api/openapi.json` — machine-readable spec (tags, `BearerAuth` security scheme). `GET /api/docs` serves Swagger UI (Basic auth placeholder in `src/main.py`).
+
 **Workflow:** one issue → one branch from `dev` → tests for that change → one PR into `dev`. Same policy for [`bots/auth_bot`](https://github.com/ZhuchkaTriplesix/ZhuchkaKeyboards_auth_bot). Details: [git-workflow.md](https://github.com/ZhuchkaTriplesix/ZhuchkaKeyboards/blob/main/docs/git-workflow.md) (section «`services/auth` и `bots/auth_bot`»).
 
 ### Auth API (summary)
