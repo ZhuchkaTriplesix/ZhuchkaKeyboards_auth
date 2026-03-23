@@ -77,6 +77,8 @@ class UserRole(Base):
 
 
 class OAuthClient(Base):
+    # CustomBase would resolve "OAuthClient" -> o_auth_client; DB table is oauth_client (see Alembic).
+    __tablename__ = "oauth_client"
     __repr_attrs__ = ("client_id",)
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -99,6 +101,10 @@ class OAuthClient(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
+    refresh_tokens: Mapped[list[RefreshToken]] = relationship(
+        "RefreshToken", back_populates="client"
+    )
+
 
 class RefreshToken(Base):
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -115,6 +121,8 @@ class RefreshToken(Base):
     replaced_by_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("refresh_token.id"), nullable=True
     )
+
+    client: Mapped[OAuthClient] = relationship("OAuthClient", back_populates="refresh_tokens")
 
 
 class LoginAudit(Base):
