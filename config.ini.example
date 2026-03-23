@@ -42,3 +42,17 @@ PORT = 6379
 DB = 0
 PASSWORD =
 
+[AUTH]
+# Issuer URL must match public URL behind Traefik (no trailing slash in JWT iss)
+ISSUER = http://127.0.0.1:8000
+AUDIENCE = zhuchka-api
+ACCESS_TOKEN_MINUTES = 15
+REFRESH_TOKEN_DAYS = 30
+JWT_PRIVATE_KEY_PATH = var/jwt_private.pem
+# First admin + dev OAuth client (set in dev only; empty = skip)
+BOOTSTRAP_ADMIN_EMAIL =
+BOOTSTRAP_ADMIN_PASSWORD =
+BOOTSTRAP_CLIENT_ID = zhuchka-dev
+BOOTSTRAP_CLIENT_SECRET = change-me-dev-only
+PASSWORD_GRANT_ENABLED = true
+

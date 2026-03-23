@@ -50,5 +50,37 @@ class RedisCfg(CfgBase):
     password: str = config["REDIS"]["PASSWORD"]
 
 
+class AuthCfg(CfgBase):
+    """OAuth/JWT settings ([AUTH] in config.ini; optional — defaults apply)."""
+
+    def __init__(self) -> None:
+        self.issuer: str = self._get("ISSUER", "http://127.0.0.1:8000")
+        self.audience: str = self._get("AUDIENCE", "zhuchka-api")
+        self.access_token_minutes: int = self._get_int("ACCESS_TOKEN_MINUTES", 15)
+        self.refresh_token_days: int = self._get_int("REFRESH_TOKEN_DAYS", 30)
+        self.jwt_private_key_path: str = self._get("JWT_PRIVATE_KEY_PATH", "var/jwt_private.pem")
+        self.bootstrap_admin_email: str = self._get("BOOTSTRAP_ADMIN_EMAIL", "").strip()
+        self.bootstrap_admin_password: str = self._get("BOOTSTRAP_ADMIN_PASSWORD", "").strip()
+        self.bootstrap_client_id: str = self._get("BOOTSTRAP_CLIENT_ID", "zhuchka-dev")
+        self.bootstrap_client_secret: str = self._get("BOOTSTRAP_CLIENT_SECRET", "change-me-dev-only")
+        self.password_grant_enabled: bool = self._get_bool("PASSWORD_GRANT_ENABLED", True)
+
+    def _get(self, key: str, fallback: str) -> str:
+        if not config.has_section("AUTH"):
+            return fallback
+        return config.get("AUTH", key, fallback=fallback)
+
+    def _get_int(self, key: str, fallback: int) -> int:
+        if not config.has_section("AUTH"):
+            return fallback
+        return config.getint("AUTH", key, fallback=fallback)
+
+    def _get_bool(self, key: str, fallback: bool) -> bool:
+        if not config.has_section("AUTH"):
+            return fallback
+        return config.getboolean("AUTH", key, fallback=fallback)
+
+
 uvicorn_cfg = UvicornCfg()
 redis_cfg = RedisCfg()
+auth_cfg = AuthCfg()
