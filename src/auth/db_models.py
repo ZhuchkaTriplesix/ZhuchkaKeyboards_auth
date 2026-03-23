@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -24,10 +24,11 @@ class Role(Base):
 
 class User(Base):
     __tablename__ = "users"
-    __repr_attrs__ = ("email",)
+    __repr_attrs__ = ("email", "identity_kind")
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
+    identity_kind: Mapped[str] = mapped_column(String(32), nullable=False, default="customer")
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -40,7 +41,30 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    roles: Mapped[list[Role]] = relationship("Role", secondary="user_roles", lazy="selectin")
+    roles: Mapped[list[Role]] = relationship("Role", secondary="user_role", lazy="selectin")
+    external_identities: Mapped[list[ExternalIdentity]] = relationship(
+        "ExternalIdentity", back_populates="user", lazy="selectin"
+    )
+
+
+class ExternalIdentity(Base):
+    __repr_attrs__ = ("provider", "subject")
+
+    __table_args__ = (
+        UniqueConstraint("provider", "subject", name="uq_external_identity_provider_subject"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    user: Mapped[User] = relationship("User", back_populates="external_identities")
 
 
 class UserRole(Base):
@@ -101,6 +125,7 @@ class LoginAudit(Base):
         Uuid(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
     client_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    login_method: Mapped[str | None] = mapped_column(String(64), nullable=True)
     ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
     success: Mapped[bool] = mapped_column(Boolean, nullable=False)

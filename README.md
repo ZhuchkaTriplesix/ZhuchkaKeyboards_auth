@@ -25,7 +25,7 @@ Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fast
 
 **Bootstrap (dev):** set `[AUTH]` `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`, and `BOOTSTRAP_CLIENT_SECRET` in `config.ini`. On startup the service creates roles, a confidential OAuth client (`BOOTSTRAP_CLIENT_ID`), and an admin user. RSA key for JWT is created under `var/jwt_private.pem` if `AUTH_JWT_PRIVATE_KEY_PEM` is not set.
 
-**Migrations:** `alembic upgrade head` (from repo root with `alembic.ini` / `config.ini` configured). Requires PostgreSQL with `pgcrypto` or `gen_random_uuid()` (PostgreSQL 13+).
+**Migrations:** `alembic upgrade head` (from repo root with `alembic.ini` / `config.ini` configured). Chain: `20250323_0001` (users, roles, OAuth clients, refresh tokens, login audit) → `20250323_0002` (`users.identity_kind` `customer`/`staff`, `external_identity` for federated IdPs, `login_audit.login_method`). Requires PostgreSQL with `pgcrypto` or `gen_random_uuid()` (PostgreSQL 13+).
 
 **Python:** use **3.11–3.13** for local venv; 3.14 may lack wheels for some dependencies.
 
