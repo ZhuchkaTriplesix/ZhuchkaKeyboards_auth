@@ -107,10 +107,15 @@ Before deploying to production, ensure:
 
 ### Health Check
 
-Application exposes a health check endpoint:
+The API exposes **liveness** and **readiness** probes (`src/configuration/app.py`), plus a detailed check under `/api/root`:
+
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8000/health/live    # process up (200)
+curl http://localhost:8000/health/ready   # DB reachable (200)
+curl http://localhost:8000/api/root/health # DB + Redis (200 or 503)
 ```
+
+Behind Nginx on port 80, `GET /health` proxies to liveness (`/health/live`).
 
 ### Logs
 

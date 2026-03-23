@@ -2,7 +2,6 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.responses import ORJSONResponse
 from sqlalchemy import text
 from starlette.middleware.cors import CORSMiddleware
 
@@ -39,7 +38,6 @@ class App:
             redoc_url=None,
             openapi_url="/api/openapi.json",
             openapi_tags=OPENAPI_TAGS,
-            default_response_class=ORJSONResponse,
             lifespan=_lifespan,
         )
         apply_openapi(self._app)

@@ -228,25 +228,21 @@ PASSWORD =
 - TTL (Time To Live) management
 - Multiple key deletion support
 
-#### Health Check
-- Database connectivity check
-- Redis connectivity check
-- Returns 200 (healthy) or 503 (unhealthy)
-- Accessible at `/api/root/health`
+#### Health checks
+- **`GET /health/live`** — liveness (process up, no dependencies)
+- **`GET /health/ready`** — readiness (database reachable)
+- **`GET /api/root/health`** — full check: database + Redis; returns 200 or 503
 
 
 ## Testing
 
 ```bash
+pip install -r requirements.txt -r requirements-dev.txt
 # Run all tests (markers @pytest.mark.integration are skipped unless INTEGRATION_TEST=1)
 make test
-
-# Run with coverage
-pytest --cov=src --cov-report=html
-
-# Run specific test
-pytest tests/test_api.py -v
 ```
+
+Coverage: `pytest tests/ -v --cov=src --cov-report=html`. Single file: `pytest tests/test_smoke_public.py -v`.
 
 **Integration tests** hit a real PostgreSQL database (`/health/ready`, OAuth flows that need the DB). Prerequisites: `config.ini` from `config.ini.example` with a reachable `[POSTGRES]` block, then `alembic upgrade head`.
 
