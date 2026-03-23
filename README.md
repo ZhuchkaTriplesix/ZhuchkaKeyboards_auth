@@ -2,7 +2,9 @@
 
 OAuth2/OIDC authorization server for ZhuchkaKeyboards: **JWT (RS256)**, **JWKS**, **token** (`client_credentials`, `password`, `refresh_token`), **userinfo**, admin API for users. See `docs/microservices/01-auth.md` in the parent monorepo.
 
-Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fastapi-template) (systemd unit and GitHub Actions workflow removed).
+Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fastapi-template) (upstream systemd unit removed; this repo has its own CI).
+
+**CI:** on push/PR to `dev`, GitHub Actions runs **ruff** (lint + format check), **pytest** with coverage, and **docker build** (`docker/Dockerfile`). Dev tools: `pip install -r requirements-dev.txt`.
 
 **Workflow:** one issue → one branch from `dev` → tests for that change → one PR into `dev`. Same policy for [`bots/auth_bot`](https://github.com/ZhuchkaTriplesix/ZhuchkaKeyboards_auth_bot). Details: [git-workflow.md](https://github.com/ZhuchkaTriplesix/ZhuchkaKeyboards/blob/main/docs/git-workflow.md) (section «`services/auth` и `bots/auth_bot`»).
 
