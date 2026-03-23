@@ -22,18 +22,16 @@ DATABASE_ENGINE_POOL_PING = true
 DATABASE_ECHO = false
 
 [UVICORN]
-# Uvicorn server configuration
+# Granian ASGI (section name kept for compatibility): bind, workers, loop, HTTP mode
 HOST = 0.0.0.0
 PORT = 8000
 WORKERS = 4
 
-# Event loop implementation
-# Options: asyncio | uvloop (uvloop is faster, recommended for production)
+# Event loop: auto | asyncio | uvloop | winloop | rloop
 LOOP = uvloop
 
-# HTTP protocol implementation
-# Options: h11 | httptools (httptools is faster, recommended for production)
-HTTP = httptools
+# HTTP: auto | 1 | 2 (Granian)
+HTTP = auto
 
 [REDIS]
 # Redis cache configuration  

@@ -4,6 +4,8 @@ OAuth2/OIDC authorization server for ZhuchkaKeyboards: **JWT (RS256)**, **JWKS**
 
 Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fastapi-template) (systemd unit and GitHub Actions workflow removed).
 
+**Workflow:** one issue → one branch from `dev` → tests for that change → one PR into `dev`. Same policy for [`bots/auth_bot`](https://github.com/ZhuchkaTriplesix/ZhuchkaKeyboards_auth_bot). Details: [git-workflow.md](https://github.com/ZhuchkaTriplesix/ZhuchkaKeyboards/blob/main/docs/git-workflow.md) (section «`services/auth` и `bots/auth_bot`»).
+
 ### Auth API (summary)
 
 | Endpoint | Purpose |
