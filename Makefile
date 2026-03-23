@@ -1,4 +1,4 @@
-.PHONY: help install dev build up down logs clean test lint format
+.PHONY: help install install-dev dev build up down logs clean test lint format
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -8,6 +8,9 @@ help: ## Show this help message
 
 install: ## Install dependencies
 	pip install -r requirements.txt
+
+install-dev: ## Install app + dev (pytest, ruff) for local CI parity
+	pip install -r requirements.txt -r requirements-dev.txt
 
 dev: ## Start development environment
 	docker compose -f docker/docker-compose.dev.yml up --build
