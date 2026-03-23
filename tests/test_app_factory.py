@@ -1,4 +1,5 @@
 """Smoke test: application factory loads without side effects."""
+
 from src.configuration.app import App
 
 

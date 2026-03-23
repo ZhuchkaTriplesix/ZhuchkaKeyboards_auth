@@ -1,8 +1,7 @@
 """Redis client with convenient methods for cache operations."""
 
-from typing import Any, Optional
-from uuid import UUID
 import json
+from typing import Any
 
 import redis.asyncio as redis
 
@@ -18,7 +17,7 @@ class RedisController:
     DEFAULT_TTL = 3600  # 1 hour
 
     @classmethod
-    async def get(cls, key: str) -> Optional[str]:
+    async def get(cls, key: str) -> str | None:
         """
         Get value from Redis by key.
 
@@ -31,7 +30,7 @@ class RedisController:
         return await r.get(key)
 
     @classmethod
-    async def get_json(cls, key: str) -> Optional[Any]:
+    async def get_json(cls, key: str) -> Any | None:
         """
         Get JSON value from Redis by key.
 
@@ -50,7 +49,7 @@ class RedisController:
         return None
 
     @classmethod
-    async def set(cls, key: str, value: str, ttl: Optional[int] = None) -> bool:
+    async def set(cls, key: str, value: str, ttl: int | None = None) -> bool:
         """
         Set value in Redis with optional TTL.
 
@@ -67,7 +66,7 @@ class RedisController:
         return await r.set(key, value, ex=ttl)
 
     @classmethod
-    async def set_json(cls, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    async def set_json(cls, key: str, value: Any, ttl: int | None = None) -> bool:
         """
         Set JSON value in Redis with optional TTL.
 
@@ -111,7 +110,7 @@ class RedisController:
         return await r.delete(*keys)
 
     @classmethod
-    async def update(cls, key: str, value: str, ttl: Optional[int] = None) -> bool:
+    async def update(cls, key: str, value: str, ttl: int | None = None) -> bool:
         """
         Update value in Redis. Alias for set().
 
@@ -126,7 +125,7 @@ class RedisController:
         return await cls.set(key, value, ttl)
 
     @classmethod
-    async def update_json(cls, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    async def update_json(cls, key: str, value: Any, ttl: int | None = None) -> bool:
         """
         Update JSON value in Redis. Alias for set_json().
 

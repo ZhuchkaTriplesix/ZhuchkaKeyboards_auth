@@ -17,7 +17,9 @@ async def require_access_token(
     try:
         return decode_access_token(creds.credentials)
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_token") from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_token"
+        ) from exc
 
 
 async def require_admin_scope(claims: dict = Depends(require_access_token)) -> dict:

@@ -10,9 +10,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 # Ensure project root is on path when running alembic from repo root
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
-from src.database.base import Base  # noqa: E402
-
 import src.auth.db_models  # noqa: E402, F401
+from src.database.base import Base  # noqa: E402
 
 config = context.config
 

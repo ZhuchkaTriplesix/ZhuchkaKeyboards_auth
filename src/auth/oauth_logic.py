@@ -77,7 +77,7 @@ async def authenticate_client(
 
 
 async def grant_client_credentials(
-    session: AsyncSession,
+    _session: AsyncSession,
     client: OAuthClient,
     scope: str | None,
 ) -> dict[str, Any]:
@@ -153,9 +153,7 @@ async def grant_password(
 
     email = username.strip().lower()
     result = await session.execute(
-        select(User)
-        .options(selectinload(User.roles))
-        .where(User.email == email)
+        select(User).options(selectinload(User.roles)).where(User.email == email)
     )
     user = result.scalar_one_or_none()
 

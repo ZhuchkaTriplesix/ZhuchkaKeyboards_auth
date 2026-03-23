@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
-from src.auth.deps import require_access_token
 from src.auth.db_models import User
+from src.auth.deps import require_access_token
 from src.auth.jwt_tokens import jwks_document
 from src.auth.oauth_errors import oauth_error
 from src.auth.oauth_logic import (
