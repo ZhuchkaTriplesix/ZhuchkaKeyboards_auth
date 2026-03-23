@@ -7,7 +7,8 @@ DATABASE = postgresql
 DRIVER = asyncpg
 DATABASE_NAME = your_database_name
 USERNAME = postgres
-PASSWORD = your_password  
+PASSWORD = your_password
+# Docker Compose: set to the Postgres service hostname (e.g. `postgres`), not `localhost`
 IP = localhost
 PORT = 5432
 

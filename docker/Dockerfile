@@ -31,6 +31,11 @@ COPY --from=builder /root/.local /home/appuser/.local
 # Copy application code
 COPY --chown=appuser:appuser . .
 
+# Alembic expects alembic.ini on disk; sqlalchemy.url is overridden at runtime from config.ini (see env.py)
+COPY --chown=appuser:appuser alembic.ini.example ./alembic.ini
+
+RUN chmod +x /app/docker/docker-entrypoint.sh
+
 # Set environment variables
 ENV PATH=/home/appuser/.local/bin:$PATH \
     PYTHONUNBUFFERED=1 \
@@ -48,7 +53,7 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8000/api/root/health')" || exit 1
 
-# Run the application
-# Configuration is read from config.ini automatically
+# Migrations on start (docker-entrypoint.sh), then Granian via src/main.py
+ENTRYPOINT ["/app/docker/docker-entrypoint.sh"]
 CMD ["python", "src/main.py"]
 

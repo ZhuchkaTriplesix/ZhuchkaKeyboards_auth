@@ -64,6 +64,8 @@ cp config.ini.example config.ini
 
 3. Edit `config.ini` file according to your needs
 
+**Docker:** the app image runs **`alembic upgrade head`** on container start (before Granian/uvicorn), using the same DB URL as the app (`config.ini` `[POSTGRES]` or `DATABASE_URL` / `ALEMBIC_DATABASE_URL`). In Compose, point Postgres `IP` at the DB service name (e.g. `postgres`). To skip migrations, set **`SKIP_MIGRATIONS=1`**.
+
 ### Running (Development)
 
 #### Using Docker Compose:
@@ -134,6 +136,7 @@ ZhuchkaKeyboards_auth/
 ├── docker/
 │   ├── Dockerfile                # Production Dockerfile
 │   ├── Dockerfile.dev            # Development Dockerfile
+│   ├── docker-entrypoint.sh      # alembic upgrade head, then app
 │   ├── docker-compose.yml        # Production stack
 │   ├── docker-compose.dev.yml    # Development stack
 │   └── nginx/
