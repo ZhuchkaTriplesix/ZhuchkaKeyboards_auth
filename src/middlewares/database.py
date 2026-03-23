@@ -1,7 +1,7 @@
 """Database session middleware for managing database connections per request."""
 
 from contextvars import ContextVar
-from typing import Optional, Final
+from typing import Final
 from uuid import uuid1
 
 from sqlalchemy.ext.asyncio.session import AsyncSession
@@ -10,12 +10,11 @@ from starlette.requests import Request
 from src.database.core import async_session_maker
 from src.database.logging import SessionTracker
 
-
 REQUEST_ID_CTX_KEY: Final[str] = "request_id"
-_request_id_ctx_var: ContextVar[Optional[str]] = ContextVar(REQUEST_ID_CTX_KEY, default=None)
+_request_id_ctx_var: ContextVar[str | None] = ContextVar(REQUEST_ID_CTX_KEY, default=None)
 
 
-def get_request_id() -> Optional[str]:
+def get_request_id() -> str | None:
     """Get the current request ID from context."""
     return _request_id_ctx_var.get()
 
@@ -23,14 +22,14 @@ def get_request_id() -> Optional[str]:
 async def db_session_middleware(request: Request, call_next):
     """
     Middleware for managing database sessions per request.
-    
+
     Creates a new database session for each request, handles commits/rollbacks,
     and ensures proper cleanup of resources.
-    
+
     Args:
         request: The incoming request
         call_next: The next middleware/endpoint in the chain
-        
+
     Returns:
         Response from the next handler
     """
@@ -66,4 +65,3 @@ async def db_session_middleware(request: Request, call_next):
             await session.close()
 
         _request_id_ctx_var.reset(ctx_token)
-

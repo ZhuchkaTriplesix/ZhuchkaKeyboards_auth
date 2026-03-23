@@ -77,7 +77,7 @@ async def authenticate_client(
 
 
 async def grant_client_credentials(
-    session: AsyncSession,
+    _session: AsyncSession,
     client: OAuthClient,
     scope: str | None,
 ) -> dict[str, Any]:
@@ -119,12 +119,14 @@ async def _audit_login(
     client_id: str,
     ip: str | None,
     user_agent: str | None,
+    login_method: str | None = None,
 ) -> None:
     async with async_session_maker() as s:
         s.add(
             LoginAudit(
                 user_id=user_id,
                 client_id=client_id,
+                login_method=login_method,
                 ip=ip,
                 user_agent=user_agent,
                 success=success,
@@ -153,9 +155,7 @@ async def grant_password(
 
     email = username.strip().lower()
     result = await session.execute(
-        select(User)
-        .options(selectinload(User.roles))
-        .where(User.email == email)
+        select(User).options(selectinload(User.roles)).where(User.email == email)
     )
     user = result.scalar_one_or_none()
 
@@ -167,6 +167,7 @@ async def grant_password(
             client_id=client.client_id,
             ip=ip,
             user_agent=user_agent,
+            login_method="password",
         )
         raise ValueError("invalid_grant")
 
@@ -178,6 +179,7 @@ async def grant_password(
             client_id=client.client_id,
             ip=ip,
             user_agent=user_agent,
+            login_method="password",
         )
         raise ValueError("access_denied")
 
@@ -190,6 +192,7 @@ async def grant_password(
             client_id=client.client_id,
             ip=ip,
             user_agent=user_agent,
+            login_method="password",
         )
         raise ValueError("invalid_grant")
 
@@ -217,6 +220,7 @@ async def grant_password(
         LoginAudit(
             user_id=user.id,
             client_id=client.client_id,
+            login_method="password",
             ip=ip,
             user_agent=user_agent,
             success=True,
@@ -287,6 +291,7 @@ async def grant_refresh_token(
         LoginAudit(
             user_id=row.user_id,
             client_id=client.client_id,
+            login_method="refresh_token",
             ip=ip,
             user_agent=user_agent,
             success=True,

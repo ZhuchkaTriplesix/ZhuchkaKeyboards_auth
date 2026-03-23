@@ -1,5 +1,5 @@
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.redis_client.redis import RedisController
 from src.routers.root.schemas import HealthCheckResponse, HealthStatus
@@ -46,8 +46,4 @@ async def _health(session: AsyncSession) -> HealthCheckResponse:
         status = HealthStatus.UNHEALTHY
         redis_status = f"error: {str(e)}"
 
-    return HealthCheckResponse(
-        status=status,
-        database=database_status,
-        redis=redis_status
-    )
+    return HealthCheckResponse(status=status, database=database_status, redis=redis_status)

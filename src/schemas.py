@@ -1,15 +1,11 @@
-from typing import List, Optional, Any, Dict
 from uuid import UUID
-from datetime import datetime
-from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class User(BaseModel):
-    office_id: Optional[UUID]
-    staff_id: Optional[UUID]
+    office_id: UUID | None
+    staff_id: UUID | None
     username: str
-    permissions: List[str]
-    roles: List[str]
-
+    permissions: list[str]
+    roles: list[str]

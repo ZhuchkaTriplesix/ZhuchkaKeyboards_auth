@@ -2,7 +2,11 @@
 
 OAuth2/OIDC authorization server for ZhuchkaKeyboards: **JWT (RS256)**, **JWKS**, **token** (`client_credentials`, `password`, `refresh_token`), **userinfo**, admin API for users. See `docs/microservices/01-auth.md` in the parent monorepo.
 
-Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fastapi-template) (systemd unit and GitHub Actions workflow removed).
+Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fastapi-template) (upstream systemd unit removed; this repo has its own CI).
+
+**CI:** on push/PR to `dev`, GitHub Actions runs **ruff** (lint + format check), **pytest** with coverage, **docker build** (`docker/Dockerfile`), and a separate job **integration-tests** (PostgreSQL service, migrations, `pytest -m integration`). Dev tools: `pip install -r requirements-dev.txt`.
+
+**OpenAPI 3.x:** `GET /api/openapi.json` — machine-readable spec (tags, `BearerAuth` security scheme). `GET /api/docs` serves Swagger UI (Basic auth placeholder in `src/main.py`).
 
 **Workflow:** one issue → one branch from `dev` → tests for that change → one PR into `dev`. Same policy for [`bots/auth_bot`](https://github.com/ZhuchkaTriplesix/ZhuchkaKeyboards_auth_bot). Details: [git-workflow.md](https://github.com/ZhuchkaTriplesix/ZhuchkaKeyboards/blob/main/docs/git-workflow.md) (section «`services/auth` и `bots/auth_bot`»).
 
@@ -17,11 +21,15 @@ Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fast
 | `GET /oauth/userinfo` | OIDC userinfo (Bearer access token) |
 | `GET /oauth/authorize` | Stub until PKCE UI (returns `unsupported_response_type`) |
 | `GET /health/live`, `GET /health/ready` | Liveness / readiness |
-| `POST /api/v1/users`, `GET /api/v1/users` | Admin only (Bearer with `admin` scope) |
+| `/api/v1/users`, `/api/v1/users/{id}` | Admin: list/create/get/patch/delete (soft) users |
+| `/api/v1/users/{id}/roles`, `/api/v1/users/{id}/mfa` | Admin: replace/add roles; enable/disable MFA flags |
+| `/api/v1/roles`, `/api/v1/clients` | Admin: list roles; OAuth clients CRUD (secret shown once on create) |
+
+All `/api/v1/*` routes require **Bearer** JWT with **`admin` scope**.
 
 **Bootstrap (dev):** set `[AUTH]` `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`, and `BOOTSTRAP_CLIENT_SECRET` in `config.ini`. On startup the service creates roles, a confidential OAuth client (`BOOTSTRAP_CLIENT_ID`), and an admin user. RSA key for JWT is created under `var/jwt_private.pem` if `AUTH_JWT_PRIVATE_KEY_PEM` is not set.
 
-**Migrations:** `alembic upgrade head` (from repo root with `alembic.ini` / `config.ini` configured). Requires PostgreSQL with `pgcrypto` or `gen_random_uuid()` (PostgreSQL 13+).
+**Migrations:** `alembic upgrade head` (from repo root with `alembic.ini` / `config.ini` configured). Chain: `20250323_0001` (users, roles, OAuth clients, refresh tokens, login audit) → `20250323_0002` (`users.identity_kind` `customer`/`staff`, `external_identity` for federated IdPs, `login_audit.login_method`). Requires PostgreSQL with `pgcrypto` or `gen_random_uuid()` (PostgreSQL 13+).
 
 **Python:** use **3.11–3.13** for local venv; 3.14 may lack wheels for some dependencies.
 
@@ -59,6 +67,8 @@ cp config.ini.example config.ini
 ```
 
 3. Edit `config.ini` file according to your needs
+
+**Docker:** the app image runs **`alembic upgrade head`** on container start (before Granian/uvicorn), using the same DB URL as the app (`config.ini` `[POSTGRES]` or `DATABASE_URL` / `ALEMBIC_DATABASE_URL`). In Compose, point Postgres `IP` at the DB service name (e.g. `postgres`). To skip migrations, set **`SKIP_MIGRATIONS=1`**.
 
 ### Running (Development)
 
@@ -130,6 +140,7 @@ ZhuchkaKeyboards_auth/
 ├── docker/
 │   ├── Dockerfile                # Production Dockerfile
 │   ├── Dockerfile.dev            # Development Dockerfile
+│   ├── docker-entrypoint.sh      # alembic upgrade head, then app
 │   ├── docker-compose.yml        # Production stack
 │   ├── docker-compose.dev.yml    # Development stack
 │   └── nginx/
@@ -153,7 +164,8 @@ make up             # Start production environment
 make down           # Stop all containers
 make logs           # Show logs
 make clean          # Remove containers and volumes
-make test           # Run tests
+make test           # Run tests (integration skipped unless INTEGRATION_TEST=1)
+make test-integration # DB integration tests (Unix; needs Postgres + alembic upgrade head)
 make lint           # Run linter
 make format         # Format code
 make migrate        # Apply migrations
@@ -226,7 +238,7 @@ PASSWORD =
 ## Testing
 
 ```bash
-# Run all tests
+# Run all tests (markers @pytest.mark.integration are skipped unless INTEGRATION_TEST=1)
 make test
 
 # Run with coverage
@@ -234,6 +246,20 @@ pytest --cov=src --cov-report=html
 
 # Run specific test
 pytest tests/test_api.py -v
+```
+
+**Integration tests** hit a real PostgreSQL database (`/health/ready`, OAuth flows that need the DB). Prerequisites: `config.ini` from `config.ini.example` with a reachable `[POSTGRES]` block, then `alembic upgrade head`.
+
+```bash
+# Linux/macOS (GNU make sets INTEGRATION_TEST for this target)
+make test-integration
+```
+
+On **Windows** (PowerShell), set the variable and run pytest:
+
+```powershell
+$env:INTEGRATION_TEST = "1"
+pytest tests/ -v -m integration
 ```
 
 ## Development
