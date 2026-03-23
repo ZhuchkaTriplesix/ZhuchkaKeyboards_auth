@@ -1,0 +1,39 @@
+# Development Dockerfile with hot-reload
+
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install development dependencies
+RUN pip install --no-cache-dir \
+    watchfiles \
+    debugpy \
+    ipython
+
+# Copy application code
+COPY . .
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app
+
+# Expose ports (8000 for app, 5678 for debugger)
+EXPOSE 8000 5678
+
+# Run with hot-reload
+# Note: For development, using uvicorn directly with --reload
+# In production, config.ini values are used (see Dockerfile)
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+

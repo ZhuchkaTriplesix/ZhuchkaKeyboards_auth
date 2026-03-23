@@ -1,0 +1,44 @@
+# FastAPI Application Configuration
+# Copy this file to config.ini and adjust values for your environment
+
+[POSTGRES]
+# PostgreSQL database configuration
+DATABASE = postgresql
+DRIVER = asyncpg
+DATABASE_NAME = your_database_name
+USERNAME = postgres
+PASSWORD = your_password  
+IP = localhost
+PORT = 5432
+
+# Connection pool settings
+DATABASE_ENGINE_POOL_TIMEOUT = 30
+DATABASE_ENGINE_POOL_RECYCLE = 3600
+DATABASE_ENGINE_POOL_SIZE = 5
+DATABASE_ENGINE_MAX_OVERFLOW = 10
+DATABASE_ENGINE_POOL_PING = true
+
+# Database echo (SQL logging) - set to false in production
+DATABASE_ECHO = false
+
+[UVICORN]
+# Uvicorn server configuration
+HOST = 0.0.0.0
+PORT = 8000
+WORKERS = 4
+
+# Event loop implementation
+# Options: asyncio | uvloop (uvloop is faster, recommended for production)
+LOOP = uvloop
+
+# HTTP protocol implementation
+# Options: h11 | httptools (httptools is faster, recommended for production)
+HTTP = httptools
+
+[REDIS]
+# Redis cache configuration  
+HOST = localhost
+PORT = 6379
+DB = 0
+PASSWORD =
+

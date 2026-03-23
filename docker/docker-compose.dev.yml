@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  fastapi-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    container_name: fastapi-app-dev
+    ports:
+      - "8000:8000"
+      - "5678:5678"  # debugger port
+    volumes:
+      - ..:/app
+      - /app/__pycache__
+      - ../config.ini:/app/config.ini:ro
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - app-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: fastapi-postgres-dev
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=fastapi_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: fastapi-redis-dev
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+volumes:
+  postgres-dev-data:
+
+networks:
+  app-network:
+    driver: bridge
+
