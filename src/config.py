@@ -1,13 +1,12 @@
 import configparser
 import os
-from abc import ABC
 from dataclasses import asdict, dataclass
 
 config = configparser.ConfigParser()
-config.read(os.path.join(os.path.dirname(__file__), '..', 'config.ini'))
+config.read(os.path.join(os.path.dirname(__file__), "..", "config.ini"))
 
 
-class CfgBase(ABC):
+class CfgBase:
     dict: callable = asdict
 
 
@@ -21,11 +20,19 @@ class PostgresCfg(CfgBase):
         self.ip: str = config["POSTGRES"]["IP"]
         self.port: int = config.getint("POSTGRES", "PORT")
 
-        self.database_engine_pool_timeout: int = config.getint("POSTGRES", "DATABASE_ENGINE_POOL_TIMEOUT")
-        self.database_engine_pool_recycle: int = config.getint("POSTGRES", "DATABASE_ENGINE_POOL_RECYCLE")
+        self.database_engine_pool_timeout: int = config.getint(
+            "POSTGRES", "DATABASE_ENGINE_POOL_TIMEOUT"
+        )
+        self.database_engine_pool_recycle: int = config.getint(
+            "POSTGRES", "DATABASE_ENGINE_POOL_RECYCLE"
+        )
         self.database_engine_pool_size: int = config.getint("POSTGRES", "DATABASE_ENGINE_POOL_SIZE")
-        self.database_engine_max_overflow: int = config.getint("POSTGRES", "DATABASE_ENGINE_MAX_OVERFLOW")
-        self.database_engine_pool_ping: bool = config.getboolean("POSTGRES", "DATABASE_ENGINE_POOL_PING")
+        self.database_engine_max_overflow: int = config.getint(
+            "POSTGRES", "DATABASE_ENGINE_MAX_OVERFLOW"
+        )
+        self.database_engine_pool_ping: bool = config.getboolean(
+            "POSTGRES", "DATABASE_ENGINE_POOL_PING"
+        )
         self.database_echo: bool = config.getboolean("POSTGRES", "DATABASE_ECHO")
 
     @property
@@ -64,7 +71,9 @@ class AuthCfg(CfgBase):
         self.bootstrap_admin_email: str = self._get("BOOTSTRAP_ADMIN_EMAIL", "").strip()
         self.bootstrap_admin_password: str = self._get("BOOTSTRAP_ADMIN_PASSWORD", "").strip()
         self.bootstrap_client_id: str = self._get("BOOTSTRAP_CLIENT_ID", "zhuchka-dev")
-        self.bootstrap_client_secret: str = self._get("BOOTSTRAP_CLIENT_SECRET", "change-me-dev-only")
+        self.bootstrap_client_secret: str = self._get(
+            "BOOTSTRAP_CLIENT_SECRET", "change-me-dev-only"
+        )
         self.password_grant_enabled: bool = self._get_bool("PASSWORD_GRANT_ENABLED", True)
 
     def _get(self, key: str, fallback: str) -> str:
@@ -86,6 +95,7 @@ class AuthCfg(CfgBase):
 uvicorn_cfg = UvicornCfg()
 redis_cfg = RedisCfg()
 auth_cfg = AuthCfg()
+
 
 def granian_loop_mode(loop_name: str):
     from granian.constants import Loops
@@ -125,4 +135,3 @@ def run_granian_app(target: str) -> None:
         http=granian_http_mode(uvicorn_cfg.http),
         log_access=True,
     ).serve()
-

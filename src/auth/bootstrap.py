@@ -24,7 +24,9 @@ async def _ensure_roles(session: AsyncSession) -> None:
 
 
 async def _ensure_bootstrap_client(session: AsyncSession) -> None:
-    r = await session.execute(select(OAuthClient).where(OAuthClient.client_id == auth_cfg.bootstrap_client_id))
+    r = await session.execute(
+        select(OAuthClient).where(OAuthClient.client_id == auth_cfg.bootstrap_client_id)
+    )
     if r.scalar_one_or_none() is not None:
         return
     session.add(

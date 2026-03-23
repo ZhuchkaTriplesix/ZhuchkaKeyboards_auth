@@ -14,7 +14,6 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 from src.config import auth_cfg
 
-
 _KID = "auth-rs256-1"
 
 
@@ -64,6 +63,7 @@ def public_key_pem() -> bytes:
 def jwks_document() -> dict[str, Any]:
     pub = serialization.load_pem_private_key(private_key_pem(), password=None).public_key()
     numbers = pub.public_numbers()
+
     def b64u(data: int) -> str:
         length = (data.bit_length() + 7) // 8
         b = data.to_bytes(length, byteorder="big")

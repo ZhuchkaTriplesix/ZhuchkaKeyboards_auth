@@ -1,5 +1,10 @@
 from sqlalchemy import make_url
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from starlette.requests import Request
 
 from src.config import PostgresCfg
@@ -35,7 +40,6 @@ def create_db_engine(connection_string: str) -> AsyncEngine:
 # Create the default engine with standard timeout
 engine = create_db_engine(
     PostgresCfg().url,
-
 )
 
 

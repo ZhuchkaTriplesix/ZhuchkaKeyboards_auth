@@ -40,9 +40,7 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    roles: Mapped[list[Role]] = relationship(
-        "Role", secondary="user_roles", lazy="selectin"
-    )
+    roles: Mapped[list[Role]] = relationship("Role", secondary="user_roles", lazy="selectin")
 
 
 class UserRole(Base):
@@ -99,7 +97,9 @@ class RefreshToken(Base):
 
 class LoginAudit(Base):
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    user_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )
     client_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)

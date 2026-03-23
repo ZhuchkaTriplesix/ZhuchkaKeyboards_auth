@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def _lifespan(app: FastAPI):
+async def _lifespan(_app: FastAPI):
     try:
         async with async_session_maker() as session:
             await run_bootstrap(session)
