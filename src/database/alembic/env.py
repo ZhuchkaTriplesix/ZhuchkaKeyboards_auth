@@ -18,6 +18,23 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+
+def _apply_database_url_override() -> None:
+    """Prefer DATABASE_URL / ALEMBIC_DATABASE_URL; else build from config.ini (same as the app)."""
+    url = os.environ.get("DATABASE_URL") or os.environ.get("ALEMBIC_DATABASE_URL")
+    if not url:
+        try:
+            from src.config import PostgresCfg
+
+            url = PostgresCfg().url
+        except Exception:
+            return
+    if url:
+        config.set_main_option("sqlalchemy.url", url)
+
+
+_apply_database_url_override()
+
 target_metadata = Base.metadata
 
 
