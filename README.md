@@ -21,7 +21,11 @@ Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fast
 | `GET /oauth/userinfo` | OIDC userinfo (Bearer access token) |
 | `GET /oauth/authorize` | Stub until PKCE UI (returns `unsupported_response_type`) |
 | `GET /health/live`, `GET /health/ready` | Liveness / readiness |
-| `POST /api/v1/users`, `GET /api/v1/users` | Admin only (Bearer with `admin` scope) |
+| `/api/v1/users`, `/api/v1/users/{id}` | Admin: list/create/get/patch/delete (soft) users |
+| `/api/v1/users/{id}/roles`, `/api/v1/users/{id}/mfa` | Admin: replace/add roles; enable/disable MFA flags |
+| `/api/v1/roles`, `/api/v1/clients` | Admin: list roles; OAuth clients CRUD (secret shown once on create) |
+
+All `/api/v1/*` routes require **Bearer** JWT with **`admin` scope**.
 
 **Bootstrap (dev):** set `[AUTH]` `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`, and `BOOTSTRAP_CLIENT_SECRET` in `config.ini`. On startup the service creates roles, a confidential OAuth client (`BOOTSTRAP_CLIENT_ID`), and an admin user. RSA key for JWT is created under `var/jwt_private.pem` if `AUTH_JWT_PRIVATE_KEY_PEM` is not set.
 
