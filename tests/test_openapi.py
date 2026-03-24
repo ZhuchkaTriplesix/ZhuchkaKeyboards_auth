@@ -25,6 +25,7 @@ def test_openapi_json_schema():
     assert "/api/v1/clients" in paths
     assert "/api/v1/clients/{client_pk}" in paths
     assert "BearerAuth" in body["components"]["securitySchemes"]
+    assert "ApiErrorResponse" in body["components"]["schemas"]
     tags = {t["name"] for t in body.get("tags", [])}
     assert "admin" in tags
     assert "oauth" in tags

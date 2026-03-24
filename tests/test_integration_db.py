@@ -85,7 +85,9 @@ def test_oauth_token_refresh_requires_refresh_token(client: TestClient):
 def test_oauth_userinfo_requires_bearer(client: TestClient):
     r = client.get("/oauth/userinfo")
     assert r.status_code == 401
-    assert r.json().get("detail") == "missing_bearer"
+    body = r.json()
+    assert body.get("code") == "missing_bearer"
+    assert "message" in body
 
 
 @pytest.mark.integration
