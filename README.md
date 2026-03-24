@@ -23,6 +23,7 @@ Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fast
 | `POST /oauth/federated/google` | JSON: `client_id` (public), `id_token` (Google ID token). **Requires** `[AUTH] GOOGLE_CLIENT_IDS`. |
 | `POST /oauth/federated/telegram` | JSON: Telegram Login widget fields + `client_id`. **Requires** `[AUTH] TELEGRAM_BOT_TOKEN`. |
 | `GET /health/live`, `GET /health/ready` | Liveness / readiness |
+| `GET /metrics` | Prometheus metrics (`auth_http_requests_total`, process stats) |
 | `/api/v1/users`, `/api/v1/users/{id}` | Admin: list/create/get/patch/delete (soft) users |
 | `/api/v1/users/{id}/roles`, `/api/v1/users/{id}/mfa` | Admin: replace/add roles; enable/disable MFA flags |
 | `/api/v1/roles`, `/api/v1/clients` | Admin: list roles; OAuth clients CRUD (secret shown once on create) |
