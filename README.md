@@ -10,6 +10,8 @@ Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fast
 
 **Workflow:** one issue → one branch from `dev` → tests for that change → one PR into `dev`. Same policy for [`bots/auth_bot`](https://github.com/ZhuchkaTriplesix/ZhuchkaKeyboards_auth_bot). Details: [git-workflow.md](https://github.com/ZhuchkaTriplesix/ZhuchkaKeyboards/blob/main/docs/git-workflow.md) (section «`services/auth` и `bots/auth_bot`»).
 
+**Router layout:** each router package under `src/routers/<name>/` should follow `router.py` (HTTP only) + `schemas.py` + `actions.py` + `dal.py` + optional `enums.py`; see [`docs/ROUTER_ARCHITECTURE.md`](docs/ROUTER_ARCHITECTURE.md). Reference: `routers/root/`; `routers/admin/` follows this split; OAuth is being migrated from `oauth_logic` / fat routers incrementally.
+
 ### Auth API (summary)
 
 | Endpoint | Purpose |
