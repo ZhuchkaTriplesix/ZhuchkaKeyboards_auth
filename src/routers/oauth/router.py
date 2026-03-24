@@ -64,7 +64,7 @@ async def jwks() -> dict:
     return jwks_document()
 
 
-@router.get("/oauth/authorize", include_in_schema=True)
+@router.get("/oauth/authorize", include_in_schema=True, response_model=None)
 async def oauth_authorize(
     request: Request,
     session: DbSession,
@@ -75,7 +75,7 @@ async def oauth_authorize(
     state: str | None = Query(None),
     code_challenge: str | None = Query(None),
     code_challenge_method: str | None = Query(None),
-) -> RedirectResponse | JSONResponse:
+) -> Response:
     """Authorization Code + PKCE (S256) for the **public** storefront client. Requires prior federated login cookie."""
     client = await get_oauth_client_by_id(session, client_id.strip())
     if not client:
