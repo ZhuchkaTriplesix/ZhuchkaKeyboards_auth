@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.auth.db_models import LoginAudit, OAuthClient, RefreshToken, User
-from src.auth.jwt_tokens import mint_access_token
+from src.auth.jwt_tokens import decode_access_token, mint_access_token
 from src.auth.passwords import verify_password, verify_secret
 from src.config import auth_cfg
 from src.database.core import async_session_maker
@@ -373,3 +373,72 @@ async def revoke_refresh_token(session: AsyncSession, token: str | None) -> None
     row = r.scalar_one_or_none()
     if row and not row.revoked_at:
         row.revoked_at = datetime.now(tz=UTC)
+
+
+async def introspect_access_token_string(token: str) -> dict[str, Any]:
+    """RFC 7662-style introspection for RS256 access JWTs issued by this server."""
+    try:
+        claims = decode_access_token(token)
+    except Exception:
+        return {"active": False}
+    if claims.get("token_use") != "access":
+        return {"active": False}
+    sub = claims.get("sub")
+    if not sub:
+        return {"active": False}
+    out: dict[str, Any] = {
+        "active": True,
+        "token_type": "Bearer",
+        "scope": str(claims.get("scope") or ""),
+        "client_id": str(claims.get("client_id") or ""),
+        "sub": str(sub),
+    }
+    exp = claims.get("exp")
+    iat = claims.get("iat")
+    if exp is not None:
+        out["exp"] = int(exp)
+    if iat is not None:
+        out["iat"] = int(iat)
+    return out
+
+
+async def introspect_refresh_token_string(session: AsyncSession, raw: str) -> dict[str, Any]:
+    h = _hash_refresh(raw)
+    r = await session.execute(
+        select(RefreshToken)
+        .options(selectinload(RefreshToken.client))
+        .where(RefreshToken.token_hash == h)
+    )
+    row = r.scalar_one_or_none()
+    if not row or row.revoked_at or row.expires_at < datetime.now(tz=UTC):
+        return {"active": False}
+    oc = row.client
+    cid = oc.client_id if oc else ""
+    out: dict[str, Any] = {
+        "active": True,
+        "token_type": "refresh_token",
+        "scope": row.scope or "",
+        "client_id": cid,
+        "sub": str(row.user_id) if row.user_id else f"client:{cid}",
+        "exp": int(row.expires_at.timestamp()),
+    }
+    return out
+
+
+async def introspect_token(
+    session: AsyncSession,
+    *,
+    token: str,
+    token_type_hint: str | None,
+) -> dict[str, Any]:
+    """Return introspection JSON (active + metadata). Caller must authenticate a confidential client."""
+    hint = (token_type_hint or "").strip().lower()
+    if hint == "refresh_token":
+        return await introspect_refresh_token_string(session, token)
+    if hint == "access_token":
+        return await introspect_access_token_string(token)
+    if token.count(".") == 2:
+        r = await introspect_access_token_string(token)
+        if r.get("active"):
+            return r
+    return await introspect_refresh_token_string(session, token)

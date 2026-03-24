@@ -18,6 +18,7 @@ Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fast
 | `GET /.well-known/jwks.json` | Public keys for JWT verification |
 | `POST /oauth/token` | Token (form body: `grant_type`, client auth Basic or `client_id`/`client_secret`) |
 | `POST /oauth/revoke` | Revoke refresh token |
+| `POST /oauth/introspect` | RFC 7662 token introspection (confidential client only; form: `token`, optional `token_type_hint`) |
 | `GET /oauth/userinfo` | OIDC userinfo (Bearer access token) |
 | `GET /oauth/authorize` | Stub until PKCE UI (returns `unsupported_response_type`) |
 | `POST /oauth/federated/google` | JSON: `client_id` (public), `id_token` (Google ID token). **Requires** `[AUTH] GOOGLE_CLIENT_IDS`. |

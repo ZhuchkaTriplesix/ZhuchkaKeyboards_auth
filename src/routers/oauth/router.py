@@ -17,6 +17,7 @@ from src.auth.oauth_logic import (
     grant_client_credentials,
     grant_password,
     grant_refresh_token,
+    introspect_token,
     revoke_refresh_token,
 )
 from src.config import auth_cfg
@@ -38,6 +39,7 @@ async def openid_configuration() -> dict:
         "authorization_endpoint": f"{base}/oauth/authorize",
         "token_endpoint": f"{base}/oauth/token",
         "userinfo_endpoint": f"{base}/oauth/userinfo",
+        "introspection_endpoint": f"{base}/oauth/introspect",
         "jwks_uri": f"{base}/.well-known/jwks.json",
         "response_types_supported": ["code"],
         "grant_types_supported": [
@@ -140,6 +142,37 @@ async def oauth_revoke(
 ) -> Response:
     await revoke_refresh_token(session, token)
     return Response(status_code=200)
+
+
+@router.post("/oauth/introspect", include_in_schema=True)
+async def oauth_introspect(
+    session: DbSession,
+    token: str | None = Form(None),
+    token_type_hint: str | None = Form(None),
+    client_id: str | None = Form(None),
+    client_secret: str | None = Form(None),
+    client_basic: HTTPBasicCredentials | None = Depends(HTTPBasic(auto_error=False)),
+) -> JSONResponse:
+    """RFC 7662 token introspection. Requires a **confidential** OAuth client (Basic or form auth)."""
+    if not token:
+        return oauth_error(400, "invalid_request", "token is required")
+    client = await authenticate_client(
+        session,
+        client_id=client_id,
+        client_secret=client_secret,
+        basic_user=client_basic.username if client_basic else None,
+        basic_password=client_basic.password if client_basic else None,
+    )
+    if not client:
+        return oauth_error(401, "invalid_client", "Client authentication failed")
+    if client.is_public:
+        return oauth_error(
+            401,
+            "invalid_client",
+            "Token introspection requires a confidential OAuth client",
+        )
+    body = await introspect_token(session, token=token, token_type_hint=token_type_hint)
+    return JSONResponse(content=body)
 
 
 @router.get("/oauth/userinfo", include_in_schema=True)
