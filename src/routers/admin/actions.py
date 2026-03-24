@@ -1,4 +1,4 @@
-"""Бизнес-логика admin API."""
+"""Бизнес-логика admin API. Возвращает только Pydantic-схемы для HTTP-слоя."""
 
 from __future__ import annotations
 
@@ -16,17 +16,21 @@ from src.routers.admin.exceptions import (
     EmailExistsError,
     UnknownRoleError,
 )
+from src.routers.admin.mappers import oauth_client_out, role_out, user_out
 from src.routers.admin.schemas import (
     OAuthClientCreate,
     OAuthClientCreated,
+    OAuthClientOut,
     OAuthClientPatch,
+    RoleOut,
     RolesPayload,
     UserCreate,
+    UserOut,
     UserPatch,
 )
 
 
-async def create_user(session: AsyncSession, body: UserCreate) -> User:
+async def create_user(session: AsyncSession, body: UserCreate) -> UserOut:
     dal = AdminDAL(session)
     email = body.email.strip().lower()
     if await dal.user_get_by_email(email):
@@ -43,21 +47,22 @@ async def create_user(session: AsyncSession, body: UserCreate) -> User:
     if role:
         dal.user_role_add(user.id, role.id)
     await session.flush()
-    return user
+    return user_out(user)
 
 
-async def list_users(session: AsyncSession) -> list[User]:
-    return await AdminDAL(session).users_list()
+async def list_users(session: AsyncSession) -> list[UserOut]:
+    rows = await AdminDAL(session).users_list()
+    return [user_out(u) for u in rows]
 
 
-async def get_user(session: AsyncSession, user_id: UUID) -> User:
+async def get_user(session: AsyncSession, user_id: UUID) -> UserOut:
     user = await AdminDAL(session).user_get_by_id(user_id)
     if not user:
         raise AdminNotFoundError("user", str(user_id))
-    return user
+    return user_out(user)
 
 
-async def patch_user(session: AsyncSession, user_id: UUID, body: UserPatch) -> User:
+async def patch_user(session: AsyncSession, user_id: UUID, body: UserPatch) -> UserOut:
     dal = AdminDAL(session)
     user = await dal.user_get_by_id(user_id)
     if not user:
@@ -75,7 +80,7 @@ async def patch_user(session: AsyncSession, user_id: UUID, body: UserPatch) -> U
     if body.password is not None:
         user.password_hash = hash_password(body.password)
     await session.flush()
-    return user
+    return user_out(user)
 
 
 async def soft_delete_user(session: AsyncSession, user_id: UUID) -> None:
@@ -87,7 +92,7 @@ async def soft_delete_user(session: AsyncSession, user_id: UUID) -> None:
     await session.flush()
 
 
-async def replace_user_roles(session: AsyncSession, user_id: UUID, body: RolesPayload) -> User:
+async def replace_user_roles(session: AsyncSession, user_id: UUID, body: RolesPayload) -> UserOut:
     dal = AdminDAL(session)
     user = await dal.user_get_by_id(user_id)
     if not user:
@@ -100,10 +105,10 @@ async def replace_user_roles(session: AsyncSession, user_id: UUID, body: RolesPa
         dal.user_role_add(user.id, role.id)
     await session.flush()
     await session.refresh(user, attribute_names=["roles"])
-    return user
+    return user_out(user)
 
 
-async def add_user_roles(session: AsyncSession, user_id: UUID, body: RolesPayload) -> User:
+async def add_user_roles(session: AsyncSession, user_id: UUID, body: RolesPayload) -> UserOut:
     dal = AdminDAL(session)
     user = await dal.user_get_by_id(user_id)
     if not user:
@@ -118,32 +123,34 @@ async def add_user_roles(session: AsyncSession, user_id: UUID, body: RolesPayloa
             have.add(role.id)
     await session.flush()
     await session.refresh(user, attribute_names=["roles"])
-    return user
+    return user_out(user)
 
 
-async def set_user_mfa(session: AsyncSession, user_id: UUID, *, enabled: bool) -> User:
+async def set_user_mfa(session: AsyncSession, user_id: UUID, *, enabled: bool) -> UserOut:
     dal = AdminDAL(session)
     user = await dal.user_get_by_id(user_id)
     if not user:
         raise AdminNotFoundError("user", str(user_id))
     user.mfa_enabled = enabled
     await session.flush()
-    return user
+    return user_out(user)
 
 
-async def list_roles(session: AsyncSession):
-    return await AdminDAL(session).roles_all()
+async def list_roles(session: AsyncSession) -> list[RoleOut]:
+    rows = await AdminDAL(session).roles_all()
+    return [role_out(r) for r in rows]
 
 
-async def list_clients(session: AsyncSession):
-    return await AdminDAL(session).oauth_clients_list()
+async def list_clients(session: AsyncSession) -> list[OAuthClientOut]:
+    rows = await AdminDAL(session).oauth_clients_list()
+    return [oauth_client_out(oc) for oc in rows]
 
 
-async def get_client(session: AsyncSession, client_pk: UUID) -> OAuthClient:
+async def get_client(session: AsyncSession, client_pk: UUID) -> OAuthClientOut:
     oc = await AdminDAL(session).oauth_client_get_by_id(client_pk)
     if not oc:
         raise AdminNotFoundError("oauth_client", str(client_pk))
-    return oc
+    return oauth_client_out(oc)
 
 
 async def create_client(session: AsyncSession, body: OAuthClientCreate) -> OAuthClientCreated:
@@ -179,7 +186,7 @@ async def create_client(session: AsyncSession, body: OAuthClientCreate) -> OAuth
 
 async def patch_client(
     session: AsyncSession, client_pk: UUID, body: OAuthClientPatch
-) -> OAuthClient:
+) -> OAuthClientOut:
     dal = AdminDAL(session)
     oc = await dal.oauth_client_get_by_id(client_pk)
     if not oc:
@@ -197,7 +204,7 @@ async def patch_client(
     if body.client_secret is not None:
         oc.client_secret_hash = hash_secret(body.client_secret)
     await session.flush()
-    return oc
+    return oauth_client_out(oc)
 
 
 async def delete_client(session: AsyncSession, client_pk: UUID) -> None:
