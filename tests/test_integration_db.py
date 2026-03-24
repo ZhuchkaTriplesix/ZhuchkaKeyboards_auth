@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlencode
+
 import pytest
 from starlette.testclient import TestClient
 
@@ -42,6 +44,7 @@ def test_oidc_discovery(client: TestClient):
     assert "userinfo_endpoint" in body
     assert body["userinfo_endpoint"].endswith("/oauth/userinfo")
     assert body.get("introspection_endpoint", "").endswith("/oauth/introspect")
+    assert body.get("code_challenge_methods_supported") == ["S256"]
 
 
 @pytest.mark.integration
@@ -149,6 +152,41 @@ def test_oauth_introspect_client_credentials_access_token(client: TestClient):
     assert body.get("sub") == f"client:{_DEV_CLIENT_ID}"
     assert body.get("token_type") == "Bearer"
     assert "exp" in body
+
+
+@pytest.mark.integration
+def test_oauth_authorize_redirects_login_required_without_cookie(client: TestClient):
+    q = urlencode(
+        {
+            "response_type": "code",
+            "client_id": "zhuchka-market-web",
+            "redirect_uri": "http://127.0.0.1/callback",
+            "code_challenge": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+            "code_challenge_method": "S256",
+            "state": "st",
+        }
+    )
+    r = client.get(f"/oauth/authorize?{q}", follow_redirects=False)
+    assert r.status_code == 302
+    loc = r.headers.get("location", "")
+    assert "error=login_required" in loc
+    assert "state=st" in loc
+
+
+@pytest.mark.integration
+def test_oauth_token_authorization_code_invalid_grant(client: TestClient):
+    r = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "authorization_code",
+            "client_id": "zhuchka-market-web",
+            "code": "not-a-valid-code",
+            "redirect_uri": "http://127.0.0.1/callback",
+            "code_verifier": "dBjftJeZ4CVP-mB92K27uhbAjtZ2l9J9g0aJqQ1Z9Q",
+        },
+    )
+    assert r.status_code == 400
+    assert r.json().get("error") == "invalid_grant"
 
 
 @pytest.mark.integration

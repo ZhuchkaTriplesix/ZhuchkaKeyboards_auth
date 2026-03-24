@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Response
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from src.auth.db_models import User
@@ -14,10 +14,13 @@ from src.auth.jwt_tokens import jwks_document
 from src.auth.oauth_errors import oauth_error
 from src.auth.oauth_logic import (
     authenticate_client,
+    get_oauth_client_by_id,
+    grant_authorization_code,
     grant_client_credentials,
     grant_password,
     grant_refresh_token,
     introspect_token,
+    oauth_authorization_redirect_url,
     revoke_refresh_token,
 )
 from src.config import auth_cfg
@@ -52,6 +55,7 @@ async def openid_configuration() -> dict:
         "scopes_supported": ["openid", "profile", "email", "admin"],
         "subject_types_supported": ["public"],
         "id_token_signing_alg_values_supported": ["RS256"],
+        "code_challenge_methods_supported": ["S256"],
     }
 
 
@@ -60,13 +64,39 @@ async def jwks() -> dict:
     return jwks_document()
 
 
-@router.get("/oauth/authorize", include_in_schema=True)
-async def oauth_authorize() -> JSONResponse:
-    return oauth_error(
-        400,
-        "unsupported_response_type",
-        "Authorization Code + PKCE is planned; use token grant (password or client_credentials) for now.",
+@router.get("/oauth/authorize", include_in_schema=True, response_model=None)
+async def oauth_authorize(
+    request: Request,
+    session: DbSession,
+    response_type: str = Query(..., description="Must be `code`"),
+    client_id: str = Query(...),
+    redirect_uri: str = Query(...),
+    scope: str | None = Query(None),
+    state: str | None = Query(None),
+    code_challenge: str | None = Query(None),
+    code_challenge_method: str | None = Query(None),
+) -> Response:
+    """Authorization Code + PKCE (S256) for the **public** storefront client. Requires prior federated login cookie."""
+    client = await get_oauth_client_by_id(session, client_id.strip())
+    if not client:
+        return oauth_error(400, "invalid_request", "Unknown client_id")
+    uris = list(client.redirect_uris or [])
+    if redirect_uri not in uris:
+        return oauth_error(
+            400, "invalid_request", "redirect_uri does not match client registration"
+        )
+    url = await oauth_authorization_redirect_url(
+        session,
+        client=client,
+        redirect_uri=redirect_uri,
+        response_type=response_type,
+        scope=scope,
+        state=state,
+        code_challenge=code_challenge,
+        code_challenge_method=code_challenge_method,
+        browser_login_jwt=request.cookies.get(auth_cfg.browser_login_cookie_name),
     )
+    return RedirectResponse(url=url, status_code=302)
 
 
 @router.post("/oauth/token", include_in_schema=True)
@@ -78,6 +108,9 @@ async def oauth_token(
     password: str | None = Form(None),
     refresh_token: str | None = Form(None),
     scope: str | None = Form(None),
+    code: str | None = Form(None),
+    redirect_uri: str | None = Form(None),
+    code_verifier: str | None = Form(None),
     client_id: str | None = Form(None),
     client_secret: str | None = Form(None),
     client_basic: HTTPBasicCredentials | None = Depends(HTTPBasic(auto_error=False)),
@@ -117,6 +150,18 @@ async def oauth_token(
                 session,
                 client,
                 refresh_token=refresh_token,
+                ip=ip,
+                user_agent=ua,
+            )
+        elif grant_type == "authorization_code":
+            if not code or not redirect_uri:
+                return oauth_error(400, "invalid_request", "code and redirect_uri are required")
+            body = await grant_authorization_code(
+                session,
+                client,
+                code=code,
+                redirect_uri=redirect_uri,
+                code_verifier=code_verifier,
                 ip=ip,
                 user_agent=ua,
             )

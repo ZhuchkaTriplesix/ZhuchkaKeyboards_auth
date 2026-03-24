@@ -7,7 +7,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.auth.federated_login import login_with_google, login_with_telegram
+from src.auth.jwt_tokens import decode_access_token, mint_browser_login_token
 from src.auth.oauth_errors import oauth_error
+from src.config import auth_cfg
 from src.database.dependencies import DbSession
 
 router = APIRouter()
@@ -83,7 +85,21 @@ async def oauth_federated_telegram(
             )
         return oauth_error(400, "invalid_grant", code)
     await session.commit()
-    return JSONResponse(content=out)
+    response = JSONResponse(content=out)
+    claims = decode_access_token(out["access_token"])
+    sub = claims.get("sub")
+    if sub:
+        cookie_token, max_age = mint_browser_login_token(str(sub))
+        response.set_cookie(
+            key=auth_cfg.browser_login_cookie_name,
+            value=cookie_token,
+            max_age=max_age,
+            httponly=True,
+            samesite="lax",
+            secure=auth_cfg.cookie_secure,
+            path="/",
+        )
+    return response
 
 
 @router.post("/oauth/federated/google", include_in_schema=True)
@@ -123,4 +139,18 @@ async def oauth_federated_google(
             )
         return oauth_error(400, "invalid_grant", code)
     await session.commit()
-    return JSONResponse(content=out)
+    response = JSONResponse(content=out)
+    claims = decode_access_token(out["access_token"])
+    sub = claims.get("sub")
+    if sub:
+        cookie_token, max_age = mint_browser_login_token(str(sub))
+        response.set_cookie(
+            key=auth_cfg.browser_login_cookie_name,
+            value=cookie_token,
+            max_age=max_age,
+            httponly=True,
+            samesite="lax",
+            secure=auth_cfg.cookie_secure,
+            path="/",
+        )
+    return response

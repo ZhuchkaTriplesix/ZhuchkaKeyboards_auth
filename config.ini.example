@@ -59,4 +59,11 @@ TELEGRAM_BOT_TOKEN =
 GOOGLE_CLIENT_IDS =
 # Browser-only public OAuth client (no secret); created by bootstrap if missing
 PUBLIC_OAUTH_CLIENT_ID = zhuchka-market-web
+# Space-separated redirect URIs for Authorization Code + PKCE (storefront)
+PUBLIC_OAUTH_REDIRECT_URIS = http://127.0.0.1/callback http://localhost/callback
+# Short-lived cookie JWT after federated login (used before /oauth/authorize)
+BROWSER_LOGIN_COOKIE_NAME = oauth_browser_login
+BROWSER_LOGIN_MINUTES = 15
+COOKIE_SECURE = false
+AUTHORIZATION_CODE_MINUTES = 10
 

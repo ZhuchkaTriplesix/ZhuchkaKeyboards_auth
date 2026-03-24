@@ -31,9 +31,10 @@ def test_jwks(client: TestClient):
     assert "keys" in r.json()
 
 
-def test_oauth_authorize_stub(client: TestClient):
+def test_oauth_authorize_requires_query_params(client: TestClient):
+    """Authorize is registered with required query params; bare GET yields validation 422."""
     r = client.get("/oauth/authorize")
-    assert r.status_code == 400
+    assert r.status_code == 422
 
 
 def test_metrics_prometheus(client: TestClient):
