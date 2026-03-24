@@ -21,6 +21,12 @@ def _synthetic_telegram_email(telegram_id: int) -> str:
     return f"tg.{telegram_id}@telegram.federated.zhuchka"
 
 
+def _ensure_customer_for_federated_login(user: User) -> None:
+    """Staff accounts must use org-issued credentials, not Telegram/Google (see docs/microservices/01-auth.md)."""
+    if user.identity_kind == "staff":
+        raise ValueError("staff_federation_denied")
+
+
 async def login_with_telegram(
     session: AsyncSession,
     *,
@@ -58,6 +64,7 @@ async def login_with_telegram(
     ext = r.scalar_one_or_none()
     if ext and ext.user:
         user = ext.user
+        _ensure_customer_for_federated_login(user)
     else:
         email = _synthetic_telegram_email(tid)
         ur = await session.execute(
@@ -66,6 +73,7 @@ async def login_with_telegram(
         existing = ur.scalar_one_or_none()
         if existing:
             user = existing
+            _ensure_customer_for_federated_login(user)
             session.add(
                 ExternalIdentity(
                     user_id=user.id,
@@ -145,6 +153,7 @@ async def login_with_google(
     ext = r.scalar_one_or_none()
     if ext and ext.user:
         user = ext.user
+        _ensure_customer_for_federated_login(user)
     else:
         ur = await session.execute(
             select(User).options(selectinload(User.roles)).where(User.email == email)
@@ -152,6 +161,7 @@ async def login_with_google(
         existing = ur.scalar_one_or_none()
         if existing:
             user = existing
+            _ensure_customer_for_federated_login(user)
             session.add(
                 ExternalIdentity(
                     user_id=user.id,

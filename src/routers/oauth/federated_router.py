@@ -75,6 +75,12 @@ async def oauth_federated_telegram(
             return oauth_error(401, "invalid_client", "Use the public storefront client_id")
         if code == "invalid_grant":
             return oauth_error(400, "invalid_grant", "Telegram signature or payload invalid")
+        if code == "staff_federation_denied":
+            return oauth_error(
+                403,
+                "access_denied",
+                "Staff accounts cannot sign in via Telegram or Google; use the operational login.",
+            )
         return oauth_error(400, "invalid_grant", code)
     await session.commit()
     return JSONResponse(content=out)
@@ -109,6 +115,12 @@ async def oauth_federated_google(
             return oauth_error(401, "invalid_client", "Use the public storefront client_id")
         if code == "invalid_grant":
             return oauth_error(400, "invalid_grant", "Google ID token invalid or email missing")
+        if code == "staff_federation_denied":
+            return oauth_error(
+                403,
+                "access_denied",
+                "Staff accounts cannot sign in via Telegram or Google; use the operational login.",
+            )
         return oauth_error(400, "invalid_grant", code)
     await session.commit()
     return JSONResponse(content=out)
