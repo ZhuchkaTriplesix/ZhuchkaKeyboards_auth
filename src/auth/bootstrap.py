@@ -11,6 +11,7 @@ from src.config import auth_cfg
 async def run_bootstrap(session: AsyncSession) -> None:
     await _ensure_roles(session)
     await _ensure_bootstrap_client(session)
+    await _ensure_public_market_client(session)
     await _ensure_bootstrap_admin(session)
     await session.commit()
 
@@ -43,6 +44,25 @@ async def _ensure_bootstrap_client(session: AsyncSession) -> None:
             ],
             allowed_scopes=["openid", "profile", "email", "admin"],
             allow_password_grant=True,
+        )
+    )
+
+
+async def _ensure_public_market_client(session: AsyncSession) -> None:
+    """Public client for browser / federated login (no client_secret)."""
+    cid = auth_cfg.public_oauth_client_id
+    r = await session.execute(select(OAuthClient).where(OAuthClient.client_id == cid))
+    if r.scalar_one_or_none() is not None:
+        return
+    session.add(
+        OAuthClient(
+            client_id=cid,
+            client_secret_hash=None,
+            is_public=True,
+            redirect_uris=[],
+            allowed_grant_types=["refresh_token"],
+            allowed_scopes=["openid", "profile", "email"],
+            allow_password_grant=False,
         )
     )
 

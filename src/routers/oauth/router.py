@@ -21,6 +21,7 @@ from src.auth.oauth_logic import (
 )
 from src.config import auth_cfg
 from src.database.dependencies import DbSession
+from src.routers.oauth.federated_router import router as federated_oauth_subrouter
 
 router = APIRouter()
 
@@ -161,3 +162,6 @@ async def oauth_userinfo(
         out["email"] = user.email
         out["email_verified"] = True
     return out
+
+
+router.include_router(federated_oauth_subrouter)

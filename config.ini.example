@@ -54,4 +54,9 @@ BOOTSTRAP_ADMIN_PASSWORD =
 BOOTSTRAP_CLIENT_ID = zhuchka-dev
 BOOTSTRAP_CLIENT_SECRET = change-me-dev-only
 PASSWORD_GRANT_ENABLED = true
+# Telegram Login widget + Google Sign-In (comma-separated OAuth client IDs for audience check)
+TELEGRAM_BOT_TOKEN =
+GOOGLE_CLIENT_IDS =
+# Browser-only public OAuth client (no secret); created by bootstrap if missing
+PUBLIC_OAUTH_CLIENT_ID = zhuchka-market-web
 

@@ -20,6 +20,8 @@ Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fast
 | `POST /oauth/revoke` | Revoke refresh token |
 | `GET /oauth/userinfo` | OIDC userinfo (Bearer access token) |
 | `GET /oauth/authorize` | Stub until PKCE UI (returns `unsupported_response_type`) |
+| `POST /oauth/federated/google` | JSON: `client_id` (public), `id_token` (Google ID token). **Requires** `[AUTH] GOOGLE_CLIENT_IDS`. |
+| `POST /oauth/federated/telegram` | JSON: Telegram Login widget fields + `client_id`. **Requires** `[AUTH] TELEGRAM_BOT_TOKEN`. |
 | `GET /health/live`, `GET /health/ready` | Liveness / readiness |
 | `/api/v1/users`, `/api/v1/users/{id}` | Admin: list/create/get/patch/delete (soft) users |
 | `/api/v1/users/{id}/roles`, `/api/v1/users/{id}/mfa` | Admin: replace/add roles; enable/disable MFA flags |
@@ -28,6 +30,8 @@ Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fast
 All `/api/v1/*` routes require **Bearer** JWT with **`admin` scope**.
 
 **Bootstrap (dev):** set `[AUTH]` `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`, and `BOOTSTRAP_CLIENT_SECRET` in `config.ini`. On startup the service creates roles, a confidential OAuth client (`BOOTSTRAP_CLIENT_ID`), and an admin user. RSA key for JWT is created under `var/jwt_private.pem` if `AUTH_JWT_PRIVATE_KEY_PEM` is not set.
+
+**Federated login (storefront):** bootstrap also creates a **public** OAuth client (`PUBLIC_OAUTH_CLIENT_ID`, default `zhuchka-market-web`) with no secret — use this `client_id` from browser apps. Set `TELEGRAM_BOT_TOKEN` (from @BotFather) and comma-separated `GOOGLE_CLIENT_IDS` (Google OAuth Web client ID(s)) to enable `POST /oauth/federated/*`.
 
 **Migrations:** `alembic upgrade head` (from repo root with `alembic.ini` / `config.ini` configured). Chain: `20250323_0001` (users, roles, OAuth clients, refresh tokens, login audit) → `20250323_0002` (`users.identity_kind` `customer`/`staff`, `external_identity` for federated IdPs, `login_audit.login_method`). Requires PostgreSQL with `pgcrypto` or `gen_random_uuid()` (PostgreSQL 13+).
 

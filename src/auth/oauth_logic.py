@@ -308,6 +308,63 @@ async def grant_refresh_token(
     }
 
 
+async def issue_tokens_for_user(
+    session: AsyncSession,
+    client: OAuthClient,
+    *,
+    user: User,
+    scope: str | None,
+    ip: str | None,
+    user_agent: str | None,
+    login_method: str,
+) -> dict[str, Any]:
+    """Mint access + refresh for a resource owner (federated / future browser flows)."""
+    if not user.is_active:
+        raise ValueError("invalid_grant")
+    if user.locked_until and user.locked_until > datetime.now(tz=UTC):
+        raise ValueError("access_denied")
+
+    user.failed_login_count = 0
+    user.locked_until = None
+
+    sc = _user_scope_string(user, scope, list(client.allowed_scopes or []))
+    token, expires_in = mint_access_token(
+        sub=str(user.id),
+        scope=sc,
+        client_id=client.client_id,
+    )
+    raw_refresh = secrets.token_urlsafe(48)
+    exp = datetime.now(tz=UTC) + timedelta(days=auth_cfg.refresh_token_days)
+    rt = RefreshToken(
+        token_hash=_hash_refresh(raw_refresh),
+        user_id=user.id,
+        client_db_id=client.id,
+        scope=sc,
+        expires_at=exp,
+    )
+    session.add(rt)
+    session.add(
+        LoginAudit(
+            user_id=user.id,
+            client_id=client.client_id,
+            login_method=login_method,
+            ip=ip,
+            user_agent=user_agent,
+            success=True,
+            reason=None,
+        )
+    )
+    await session.flush()
+
+    return {
+        "access_token": token,
+        "token_type": "Bearer",
+        "expires_in": expires_in,
+        "refresh_token": raw_refresh,
+        "scope": sc,
+    }
+
+
 async def revoke_refresh_token(session: AsyncSession, token: str | None) -> None:
     if not token:
         return

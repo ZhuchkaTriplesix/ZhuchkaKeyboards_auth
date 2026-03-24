@@ -75,6 +75,10 @@ class AuthCfg(CfgBase):
             "BOOTSTRAP_CLIENT_SECRET", "change-me-dev-only"
         )
         self.password_grant_enabled: bool = self._get_bool("PASSWORD_GRANT_ENABLED", True)
+        # Federated login (Telegram widget / Google ID token). Empty = disabled.
+        self.telegram_bot_token: str = self._get("TELEGRAM_BOT_TOKEN", "").strip()
+        self.google_client_ids: str = self._get("GOOGLE_CLIENT_IDS", "").strip()
+        self.public_oauth_client_id: str = self._get("PUBLIC_OAUTH_CLIENT_ID", "zhuchka-market-web")
 
     def _get(self, key: str, fallback: str) -> str:
         if not config.has_section("AUTH"):
