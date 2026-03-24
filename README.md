@@ -10,17 +10,23 @@ Microservice based on [Reei-dp/fastapi-template](https://github.com/Reei-dp/fast
 
 **Workflow:** one issue → one branch from `dev` → tests for that change → one PR into `dev`. Same policy for [`bots/auth_bot`](https://github.com/ZhuchkaTriplesix/ZhuchkaKeyboards_auth_bot). Details: [git-workflow.md](https://github.com/ZhuchkaTriplesix/ZhuchkaKeyboards/blob/main/docs/git-workflow.md) (section «`services/auth` и `bots/auth_bot`»).
 
+**Router layout:** each router package under `src/routers/<name>/` should follow `router.py` (HTTP only) + `schemas.py` + `actions.py` + `dal.py` + optional `enums.py`; see [`docs/ROUTER_ARCHITECTURE.md`](docs/ROUTER_ARCHITECTURE.md). Reference: `routers/root/`; `routers/admin/` follows this split; OAuth is being migrated from `oauth_logic` / fat routers incrementally.
+
 ### Auth API (summary)
 
 | Endpoint | Purpose |
 |----------|---------|
 | `GET /.well-known/openid-configuration` | OIDC discovery |
 | `GET /.well-known/jwks.json` | Public keys for JWT verification |
-| `POST /oauth/token` | Token (form body: `grant_type`, client auth Basic or `client_id`/`client_secret`) |
+| `POST /oauth/token` | Token (`client_credentials`, `password`, `refresh_token`, **`authorization_code`** + PKCE) |
 | `POST /oauth/revoke` | Revoke refresh token |
+| `POST /oauth/introspect` | RFC 7662 token introspection (confidential client only; form: `token`, optional `token_type_hint`) |
 | `GET /oauth/userinfo` | OIDC userinfo (Bearer access token) |
-| `GET /oauth/authorize` | Stub until PKCE UI (returns `unsupported_response_type`) |
+| `GET /oauth/authorize` | Authorization Code + **PKCE S256** for the **public** storefront client; requires prior federated login (**cookie** `BROWSER_LOGIN_COOKIE_NAME` set by `POST /oauth/federated/*`) |
+| `POST /oauth/federated/google` | JSON: `client_id` (public), `id_token` (Google ID token). **Requires** `[AUTH] GOOGLE_CLIENT_IDS`. |
+| `POST /oauth/federated/telegram` | JSON: Telegram Login widget fields + `client_id`. **Requires** `[AUTH] TELEGRAM_BOT_TOKEN`. |
 | `GET /health/live`, `GET /health/ready` | Liveness / readiness |
+| `GET /metrics` | Prometheus metrics (`auth_http_requests_total`, process stats) |
 | `/api/v1/users`, `/api/v1/users/{id}` | Admin: list/create/get/patch/delete (soft) users |
 | `/api/v1/users/{id}/roles`, `/api/v1/users/{id}/mfa` | Admin: replace/add roles; enable/disable MFA flags |
 | `/api/v1/roles`, `/api/v1/clients` | Admin: list roles; OAuth clients CRUD (secret shown once on create) |
@@ -29,7 +35,9 @@ All `/api/v1/*` routes require **Bearer** JWT with **`admin` scope**.
 
 **Bootstrap (dev):** set `[AUTH]` `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`, and `BOOTSTRAP_CLIENT_SECRET` in `config.ini`. On startup the service creates roles, a confidential OAuth client (`BOOTSTRAP_CLIENT_ID`), and an admin user. RSA key for JWT is created under `var/jwt_private.pem` if `AUTH_JWT_PRIVATE_KEY_PEM` is not set.
 
-**Migrations:** `alembic upgrade head` (from repo root with `alembic.ini` / `config.ini` configured). Chain: `20250323_0001` (users, roles, OAuth clients, refresh tokens, login audit) → `20250323_0002` (`users.identity_kind` `customer`/`staff`, `external_identity` for federated IdPs, `login_audit.login_method`). Requires PostgreSQL with `pgcrypto` or `gen_random_uuid()` (PostgreSQL 13+).
+**Federated login (storefront):** bootstrap also creates a **public** OAuth client (`PUBLIC_OAUTH_CLIENT_ID`, default `zhuchka-market-web`) with no secret — use this `client_id` from browser apps. Redirect URIs for the code flow come from `PUBLIC_OAUTH_REDIRECT_URIS` (space-separated). Set `TELEGRAM_BOT_TOKEN` (from @BotFather) and comma-separated `GOOGLE_CLIENT_IDS` (Google OAuth Web client ID(s)) to enable `POST /oauth/federated/*`. Successful federated responses set an **HttpOnly** cookie for the **Authorization Code + PKCE** step (`GET /oauth/authorize`). Users with `identity_kind=staff` **cannot** complete Telegram/Google login (HTTP 403 `access_denied`); they must use the operational password/MFA flow.
+
+**Migrations:** `alembic upgrade head` (from repo root with `alembic.ini` / `config.ini` configured). Chain: `20250323_0001` (users, roles, OAuth clients, refresh tokens, login audit) → `20250323_0002` (`users.identity_kind` `customer`/`staff`, `external_identity` for federated IdPs, `login_audit.login_method`) → `20250324_0003` (`oauth_authorization_code` for PKCE). Requires PostgreSQL with `pgcrypto` or `gen_random_uuid()` (PostgreSQL 13+).
 
 **Python:** use **3.11–3.13** for local venv; 3.14 may lack wheels for some dependencies.
 
@@ -228,25 +236,21 @@ PASSWORD =
 - TTL (Time To Live) management
 - Multiple key deletion support
 
-#### Health Check
-- Database connectivity check
-- Redis connectivity check
-- Returns 200 (healthy) or 503 (unhealthy)
-- Accessible at `/api/root/health`
+#### Health checks
+- **`GET /health/live`** — liveness (process up, no dependencies)
+- **`GET /health/ready`** — readiness (database reachable)
+- **`GET /api/root/health`** — full check: database + Redis; returns 200 or 503
 
 
 ## Testing
 
 ```bash
+pip install -r requirements.txt -r requirements-dev.txt
 # Run all tests (markers @pytest.mark.integration are skipped unless INTEGRATION_TEST=1)
 make test
-
-# Run with coverage
-pytest --cov=src --cov-report=html
-
-# Run specific test
-pytest tests/test_api.py -v
 ```
+
+Coverage: `pytest tests/ -v --cov=src --cov-report=html`. Single file: `pytest tests/test_smoke_public.py -v`.
 
 **Integration tests** hit a real PostgreSQL database (`/health/ready`, OAuth flows that need the DB). Prerequisites: `config.ini` from `config.ini.example` with a reachable `[POSTGRES]` block, then `alembic upgrade head`.
 

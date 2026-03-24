@@ -11,6 +11,7 @@ from src.config import auth_cfg
 async def run_bootstrap(session: AsyncSession) -> None:
     await _ensure_roles(session)
     await _ensure_bootstrap_client(session)
+    await _ensure_public_market_client(session)
     await _ensure_bootstrap_admin(session)
     await session.commit()
 
@@ -45,6 +46,44 @@ async def _ensure_bootstrap_client(session: AsyncSession) -> None:
             allow_password_grant=True,
         )
     )
+
+
+async def _ensure_public_market_client(session: AsyncSession) -> None:
+    """Public client for browser / federated login (no client_secret)."""
+    cid = auth_cfg.public_oauth_client_id
+    default_uris = [u.strip() for u in auth_cfg.public_oauth_redirect_uris.split() if u.strip()]
+    if not default_uris:
+        default_uris = ["http://127.0.0.1/callback"]
+    want_grants = ["authorization_code", "refresh_token"]
+    r = await session.execute(select(OAuthClient).where(OAuthClient.client_id == cid))
+    existing = r.scalar_one_or_none()
+    if existing is None:
+        session.add(
+            OAuthClient(
+                client_id=cid,
+                client_secret_hash=None,
+                is_public=True,
+                redirect_uris=default_uris,
+                allowed_grant_types=want_grants,
+                allowed_scopes=["openid", "profile", "email"],
+                allow_password_grant=False,
+            )
+        )
+        return
+    merged = list(existing.allowed_grant_types or [])
+    changed = False
+    for g in want_grants:
+        if g not in merged:
+            merged.append(g)
+            changed = True
+    uris = list(existing.redirect_uris or [])
+    for u in default_uris:
+        if u not in uris:
+            uris.append(u)
+            changed = True
+    if changed:
+        existing.allowed_grant_types = merged
+        existing.redirect_uris = uris
 
 
 async def _ensure_bootstrap_admin(session: AsyncSession) -> None:

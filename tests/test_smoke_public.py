@@ -31,6 +31,26 @@ def test_jwks(client: TestClient):
     assert "keys" in r.json()
 
 
-def test_oauth_authorize_stub(client: TestClient):
+def test_oauth_authorize_requires_query_params(client: TestClient):
+    """Authorize is registered with required query params; bare GET yields validation 422."""
     r = client.get("/oauth/authorize")
-    assert r.status_code == 400
+    assert r.status_code == 422
+
+
+def test_metrics_prometheus(client: TestClient):
+    r = client.get("/metrics")
+    assert r.status_code == 200
+    assert "text/plain" in r.headers.get("content-type", "")
+    assert b"auth_http_requests_total" in r.content
+
+
+def test_x_request_id_echo_and_propagate(client: TestClient):
+    r = client.get("/health/live", headers={"X-Request-Id": "client-req-abc-1"})
+    assert r.status_code == 200
+    assert r.headers.get("x-request-id") == "client-req-abc-1"
+
+
+def test_x_request_id_generated_when_missing(client: TestClient):
+    r = client.get("/health/live")
+    assert r.status_code == 200
+    assert r.headers.get("x-request-id")

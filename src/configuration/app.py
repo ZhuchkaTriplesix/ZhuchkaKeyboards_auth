@@ -2,10 +2,12 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.responses import ORJSONResponse
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import text
 from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import Response
 
+from src.api.error_handlers import register_error_handlers
 from src.auth.bootstrap import run_bootstrap
 from src.database.core import async_session_maker
 from src.database.dependencies import DbSession
@@ -39,10 +41,10 @@ class App:
             redoc_url=None,
             openapi_url="/api/openapi.json",
             openapi_tags=OPENAPI_TAGS,
-            default_response_class=ORJSONResponse,
             lifespan=_lifespan,
         )
         apply_openapi(self._app)
+        register_error_handlers(self._app)
         self._app.add_middleware(
             middleware_class=CORSMiddleware,
             allow_origins=["*"],
@@ -59,6 +61,15 @@ class App:
         async def health_ready(session: DbSession) -> dict:
             await session.execute(text("SELECT 1"))
             return {"status": "ready"}
+
+        @self._app.get(
+            "/metrics",
+            tags=["health"],
+            include_in_schema=False,
+            summary="Prometheus metrics",
+        )
+        async def prometheus_metrics() -> Response:
+            return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
         self._register_routers()
 

@@ -5,7 +5,26 @@ This guide covers different deployment methods for your FastAPI application.
 ## Table of Contents
 
 - [Docker Deployment](#docker-deployment)
+- [Auth service environment (`config.ini` `[AUTH]`)](#auth-service-environment-configini-auth)
 - [Production Checklist](#production-checklist)
+
+## Auth service environment (`config.ini` `[AUTH]`)
+
+OAuth/JWT and federated login are configured under the **`[AUTH]`** section (see `config.ini.example` in the repo).
+
+| Variable | Purpose |
+|----------|---------|
+| `ISSUER` | JWT `iss` claim; must match the public URL of this service (no trailing slash). |
+| `AUDIENCE` | Default JWT `aud` for API tokens. |
+| `ACCESS_TOKEN_MINUTES` / `REFRESH_TOKEN_DAYS` | Access and refresh lifetimes. |
+| `JWT_PRIVATE_KEY_PATH` | PEM path for RS256 signing; generated on first run if missing. |
+| `BOOTSTRAP_*` | Optional: create admin user + confidential OAuth client on startup (dev). |
+| `PASSWORD_GRANT_ENABLED` | Allow `grant_type=password` (typically for staff; not for public clients). |
+| `TELEGRAM_BOT_TOKEN` | @BotFather token; required for `POST /oauth/federated/telegram`. |
+| `GOOGLE_CLIENT_IDS` | Comma-separated Google OAuth **Web** client IDs; required for `POST /oauth/federated/google` (ID token audience check). |
+| `PUBLIC_OAUTH_CLIENT_ID` | Public browser client (no secret), e.g. `zhuchka-market-web`, used with federated and refresh flows. |
+
+For production, load secrets via your orchestrator (Kubernetes secrets, Docker secrets) and mount or inject `config.ini`; do not commit real tokens.
 
 ## Docker Deployment
 
@@ -107,10 +126,21 @@ Before deploying to production, ensure:
 
 ### Health Check
 
-Application exposes a health check endpoint:
+The API exposes **liveness** and **readiness** probes (`src/configuration/app.py`), plus a detailed check under `/api/root`:
+
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8000/health/live    # process up (200)
+curl http://localhost:8000/health/ready   # DB reachable (200)
+curl http://localhost:8000/api/root/health # DB + Redis (200 or 503)
 ```
+
+Behind Nginx on port 80, `GET /health` proxies to liveness (`/health/live`).
+
+### Prometheus metrics
+
+`GET /metrics` exposes Prometheus text format (process metrics plus `auth_http_requests_total{method,status_code}`). Restrict scraping to internal networks or mTLS; do not expose publicly without auth.
+
+**Request correlation:** Send optional `X-Request-Id` (1–128 characters); the same value is returned on the response. If omitted, the service generates an ID. Application code can read the current value via `get_request_id()` in `src.middlewares.database`.
 
 ### Logs
 

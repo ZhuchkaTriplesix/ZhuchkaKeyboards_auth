@@ -5,11 +5,13 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 
+from src.api.error_schemas import ApiErrorResponse
+
 OPENAPI_TAGS: list[dict[str, str]] = [
     {"name": "health", "description": "Liveness and readiness probes."},
     {
         "name": "oauth",
-        "description": "OAuth2 token endpoint, revoke, OIDC discovery, JWKS.",
+        "description": "OAuth2 token endpoint, revoke, introspection (RFC 7662), OIDC discovery, JWKS.",
     },
     {"name": "oidc", "description": "OIDC discovery document and JWKS (same router as oauth)."},
     {
@@ -50,6 +52,8 @@ def apply_openapi(app: FastAPI) -> None:
                 ),
             },
         )
+        openapi_schemas = components.setdefault("schemas", {})
+        openapi_schemas.setdefault("ApiErrorResponse", ApiErrorResponse.model_json_schema())
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
