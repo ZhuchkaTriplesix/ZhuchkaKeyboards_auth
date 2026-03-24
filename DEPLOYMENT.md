@@ -136,6 +136,12 @@ curl http://localhost:8000/api/root/health # DB + Redis (200 or 503)
 
 Behind Nginx on port 80, `GET /health` proxies to liveness (`/health/live`).
 
+### Prometheus metrics
+
+`GET /metrics` exposes Prometheus text format (process metrics plus `auth_http_requests_total{method,status_code}`). Restrict scraping to internal networks or mTLS; do not expose publicly without auth.
+
+**Request correlation:** Send optional `X-Request-Id` (1–128 characters); the same value is returned on the response. If omitted, the service generates an ID. Application code can read the current value via `get_request_id()` in `src.middlewares.database`.
+
 ### Logs
 
 #### Docker:

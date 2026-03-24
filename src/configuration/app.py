@@ -2,8 +2,10 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import text
 from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import Response
 
 from src.auth.bootstrap import run_bootstrap
 from src.database.core import async_session_maker
@@ -57,6 +59,15 @@ class App:
         async def health_ready(session: DbSession) -> dict:
             await session.execute(text("SELECT 1"))
             return {"status": "ready"}
+
+        @self._app.get(
+            "/metrics",
+            tags=["health"],
+            include_in_schema=False,
+            summary="Prometheus metrics",
+        )
+        async def prometheus_metrics() -> Response:
+            return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
         self._register_routers()
 

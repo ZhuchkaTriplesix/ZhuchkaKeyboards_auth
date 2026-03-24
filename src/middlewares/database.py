@@ -9,6 +9,19 @@ from starlette.requests import Request
 
 from src.database.core import async_session_maker
 from src.database.logging import SessionTracker
+from src.metrics import HTTP_REQUESTS_TOTAL
+
+
+def _resolve_request_id(request: Request) -> str:
+    """Prefer client X-Request-Id when present and sane; else generate one."""
+    raw = request.headers.get("x-request-id")
+    if not raw:
+        return str(uuid1())
+    rid = raw.strip()
+    if not rid or len(rid) > 128:
+        return str(uuid1())
+    return rid
+
 
 REQUEST_ID_CTX_KEY: Final[str] = "request_id"
 _request_id_ctx_var: ContextVar[str | None] = ContextVar(REQUEST_ID_CTX_KEY, default=None)
@@ -33,7 +46,7 @@ async def db_session_middleware(request: Request, call_next):
     Returns:
         Response from the next handler
     """
-    request_id = str(uuid1())
+    request_id = _resolve_request_id(request)
     ctx_token = _request_id_ctx_var.set(request_id)
 
     session: AsyncSession | None = None
@@ -46,7 +59,16 @@ async def db_session_middleware(request: Request, call_next):
             session, context="api_request_chime_service"
         )
 
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception:
+            HTTP_REQUESTS_TOTAL.labels(method=request.method, status_code="500").inc()
+            raise
+
+        HTTP_REQUESTS_TOTAL.labels(
+            method=request.method, status_code=str(response.status_code)
+        ).inc()
+        response.headers["X-Request-Id"] = request_id
 
         if session.is_active:
             await session.commit()
