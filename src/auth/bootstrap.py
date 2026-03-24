@@ -42,7 +42,14 @@ async def _ensure_bootstrap_client(session: AsyncSession) -> None:
                 "client_credentials",
                 "password",
             ],
-            allowed_scopes=["openid", "profile", "email", "admin"],
+            allowed_scopes=[
+                "openid",
+                "profile",
+                "email",
+                "admin",
+                "support.read",
+                "support.write",
+            ],
             allow_password_grant=True,
         )
     )
