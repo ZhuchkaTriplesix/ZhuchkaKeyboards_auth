@@ -5,7 +5,26 @@ This guide covers different deployment methods for your FastAPI application.
 ## Table of Contents
 
 - [Docker Deployment](#docker-deployment)
+- [Auth service environment (`config.ini` `[AUTH]`)](#auth-service-environment-configini-auth)
 - [Production Checklist](#production-checklist)
+
+## Auth service environment (`config.ini` `[AUTH]`)
+
+OAuth/JWT and federated login are configured under the **`[AUTH]`** section (see `config.ini.example` in the repo).
+
+| Variable | Purpose |
+|----------|---------|
+| `ISSUER` | JWT `iss` claim; must match the public URL of this service (no trailing slash). |
+| `AUDIENCE` | Default JWT `aud` for API tokens. |
+| `ACCESS_TOKEN_MINUTES` / `REFRESH_TOKEN_DAYS` | Access and refresh lifetimes. |
+| `JWT_PRIVATE_KEY_PATH` | PEM path for RS256 signing; generated on first run if missing. |
+| `BOOTSTRAP_*` | Optional: create admin user + confidential OAuth client on startup (dev). |
+| `PASSWORD_GRANT_ENABLED` | Allow `grant_type=password` (typically for staff; not for public clients). |
+| `TELEGRAM_BOT_TOKEN` | @BotFather token; required for `POST /oauth/federated/telegram`. |
+| `GOOGLE_CLIENT_IDS` | Comma-separated Google OAuth **Web** client IDs; required for `POST /oauth/federated/google` (ID token audience check). |
+| `PUBLIC_OAUTH_CLIENT_ID` | Public browser client (no secret), e.g. `zhuchka-market-web`, used with federated and refresh flows. |
+
+For production, load secrets via your orchestrator (Kubernetes secrets, Docker secrets) and mount or inject `config.ini`; do not commit real tokens.
 
 ## Docker Deployment
 
