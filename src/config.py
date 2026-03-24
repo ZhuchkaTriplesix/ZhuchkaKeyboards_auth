@@ -79,6 +79,17 @@ class AuthCfg(CfgBase):
         self.telegram_bot_token: str = self._get("TELEGRAM_BOT_TOKEN", "").strip()
         self.google_client_ids: str = self._get("GOOGLE_CLIENT_IDS", "").strip()
         self.public_oauth_client_id: str = self._get("PUBLIC_OAUTH_CLIENT_ID", "zhuchka-market-web")
+        # Space-separated redirect URIs for the public storefront OAuth client (bootstrap).
+        self.public_oauth_redirect_uris: str = self._get(
+            "PUBLIC_OAUTH_REDIRECT_URIS",
+            "http://127.0.0.1/callback http://localhost/callback",
+        )
+        self.browser_login_cookie_name: str = self._get(
+            "BROWSER_LOGIN_COOKIE_NAME", "oauth_browser_login"
+        )
+        self.browser_login_minutes: int = self._get_int("BROWSER_LOGIN_MINUTES", 15)
+        self.cookie_secure: bool = self._get_bool("COOKIE_SECURE", False)
+        self.authorization_code_minutes: int = self._get_int("AUTHORIZATION_CODE_MINUTES", 10)
 
     def _get(self, key: str, fallback: str) -> str:
         if not config.has_section("AUTH"):

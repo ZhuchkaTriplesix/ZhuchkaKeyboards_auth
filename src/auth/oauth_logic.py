@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
+import re
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -12,8 +14,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.auth.db_models import LoginAudit, OAuthClient, RefreshToken, User
-from src.auth.jwt_tokens import decode_access_token, mint_access_token
+from src.auth.db_models import LoginAudit, OAuthAuthorizationCode, OAuthClient, RefreshToken, User
+from src.auth.jwt_tokens import decode_access_token, decode_browser_login_token, mint_access_token
+from src.auth.oauth_urls import append_query_params
 from src.auth.passwords import verify_password, verify_secret
 from src.config import auth_cfg
 from src.database.core import async_session_maker
@@ -21,6 +24,22 @@ from src.database.core import async_session_maker
 
 def _hash_refresh(raw: str) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
+
+
+_PKCE_VERIFIER_RE = re.compile(r"^[A-Za-z0-9\-._~]{43,128}$")
+
+
+def verify_pkce_s256(code_verifier: str, code_challenge: str) -> bool:
+    """RFC 7636: BASE64URL(SHA256(ASCII(code_verifier))) == code_challenge (no padding compare)."""
+    if not _PKCE_VERIFIER_RE.match(code_verifier):
+        return False
+    digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+    computed = base64.urlsafe_b64encode(digest).decode().rstrip("=")
+
+    def _strip_pad(s: str) -> str:
+        return s.rstrip("=")
+
+    return secrets.compare_digest(_strip_pad(computed), _strip_pad(code_challenge.strip()))
 
 
 def _scope_intersect(requested: str | None, allowed: list[str]) -> str:
@@ -48,6 +67,108 @@ def _user_scope_string(user: User, requested: str | None, allowed: list[str]) ->
 async def _get_client(session: AsyncSession, client_id: str) -> OAuthClient | None:
     r = await session.execute(select(OAuthClient).where(OAuthClient.client_id == client_id))
     return r.scalar_one_or_none()
+
+
+async def get_oauth_client_by_id(session: AsyncSession, client_id: str) -> OAuthClient | None:
+    return await _get_client(session, client_id)
+
+
+def _oauth_authorize_error_redirect(
+    redirect_uri: str,
+    error: str,
+    state: str | None,
+    description: str | None = None,
+) -> str:
+    p: dict[str, str] = {"error": error}
+    if state:
+        p["state"] = state
+    if description:
+        p["error_description"] = description
+    return append_query_params(redirect_uri, p)
+
+
+async def oauth_authorization_redirect_url(
+    session: AsyncSession,
+    *,
+    client: OAuthClient,
+    redirect_uri: str,
+    response_type: str,
+    scope: str | None,
+    state: str | None,
+    code_challenge: str | None,
+    code_challenge_method: str | None,
+    browser_login_jwt: str | None,
+) -> str:
+    """Build 302 Location for GET /oauth/authorize (public client + PKCE S256 + browser login cookie)."""
+    if response_type.strip() != "code":
+        return _oauth_authorize_error_redirect(
+            redirect_uri,
+            "unsupported_response_type",
+            state,
+            "Only response_type=code is supported",
+        )
+    if not client.is_public:
+        return _oauth_authorize_error_redirect(
+            redirect_uri,
+            "unauthorized_client",
+            state,
+            "Authorization Code flow is for public clients only",
+        )
+    ch = (code_challenge or "").strip()
+    chm = (code_challenge_method or "").strip().upper()
+    if not ch or chm != "S256":
+        return _oauth_authorize_error_redirect(
+            redirect_uri,
+            "invalid_request",
+            state,
+            "code_challenge and code_challenge_method=S256 are required",
+        )
+    if not browser_login_jwt:
+        return _oauth_authorize_error_redirect(
+            redirect_uri,
+            "login_required",
+            state,
+            "Sign in first (e.g. POST /oauth/federated/google or /oauth/federated/telegram)",
+        )
+    try:
+        claims = decode_browser_login_token(browser_login_jwt)
+        sub = claims.get("sub")
+        uid = UUID(str(sub))
+    except Exception:
+        return _oauth_authorize_error_redirect(
+            redirect_uri, "login_required", state, "Invalid or expired login session"
+        )
+
+    user = await session.get(User, uid)
+    if not user:
+        return _oauth_authorize_error_redirect(
+            redirect_uri, "login_required", state, "User not found"
+        )
+
+    try:
+        raw = await register_authorization_code(
+            session,
+            client,
+            user,
+            redirect_uri=redirect_uri,
+            scope=scope,
+            code_challenge=ch,
+            code_challenge_method="S256",
+        )
+    except ValueError as exc:
+        code = exc.args[0] if exc.args else "invalid_request"
+        if code == "access_denied":
+            return _oauth_authorize_error_redirect(redirect_uri, "access_denied", state)
+        if code == "unauthorized_client":
+            return _oauth_authorize_error_redirect(redirect_uri, "unauthorized_client", state)
+        if code == "invalid_request":
+            return _oauth_authorize_error_redirect(redirect_uri, "invalid_request", state, code)
+        return _oauth_authorize_error_redirect(redirect_uri, "invalid_request", state, code)
+
+    params: dict[str, str] = {"code": raw}
+    if state:
+        params["state"] = state
+    return append_query_params(redirect_uri, params)
 
 
 async def authenticate_client(
@@ -363,6 +484,100 @@ async def issue_tokens_for_user(
         "refresh_token": raw_refresh,
         "scope": sc,
     }
+
+
+async def register_authorization_code(
+    session: AsyncSession,
+    client: OAuthClient,
+    user: User,
+    *,
+    redirect_uri: str,
+    scope: str | None,
+    code_challenge: str,
+    code_challenge_method: str,
+) -> str:
+    """Persist an OAuth2 authorization code (PKCE S256). Caller validated redirect_uri and client policy."""
+    if (code_challenge_method or "").strip().upper() != "S256":
+        raise ValueError("invalid_request")
+    if not client.is_public:
+        raise ValueError("unauthorized_client")
+    if "authorization_code" not in (client.allowed_grant_types or []):
+        raise ValueError("unauthorized_client")
+    if user.identity_kind != "customer":
+        raise ValueError("access_denied")
+    if not user.is_active:
+        raise ValueError("access_denied")
+    if user.locked_until and user.locked_until > datetime.now(tz=UTC):
+        raise ValueError("access_denied")
+
+    sc = _user_scope_string(user, scope, list(client.allowed_scopes or []))
+    raw = secrets.token_urlsafe(48)
+    exp = datetime.now(tz=UTC) + timedelta(minutes=auth_cfg.authorization_code_minutes)
+    session.add(
+        OAuthAuthorizationCode(
+            code_hash=_hash_refresh(raw),
+            client_db_id=client.id,
+            user_id=user.id,
+            redirect_uri=redirect_uri,
+            scope=sc,
+            code_challenge=code_challenge.strip(),
+            code_challenge_method="S256",
+            expires_at=exp,
+        )
+    )
+    await session.flush()
+    return raw
+
+
+async def grant_authorization_code(
+    session: AsyncSession,
+    client: OAuthClient,
+    *,
+    code: str,
+    redirect_uri: str,
+    code_verifier: str | None,
+    ip: str | None,
+    user_agent: str | None,
+) -> dict[str, Any]:
+    if "authorization_code" not in (client.allowed_grant_types or []):
+        raise ValueError("unsupported_grant")
+    h = _hash_refresh(code)
+    r = await session.execute(
+        select(OAuthAuthorizationCode).where(OAuthAuthorizationCode.code_hash == h)
+    )
+    acr = r.scalar_one_or_none()
+    if not acr or acr.consumed_at or acr.expires_at < datetime.now(tz=UTC):
+        raise ValueError("invalid_grant")
+    if acr.client_db_id != client.id:
+        raise ValueError("invalid_grant")
+    if acr.redirect_uri != redirect_uri:
+        raise ValueError("invalid_grant")
+    if not code_verifier:
+        raise ValueError("invalid_grant")
+    if not verify_pkce_s256(code_verifier, acr.code_challenge):
+        raise ValueError("invalid_grant")
+
+    ur = await session.execute(
+        select(User).options(selectinload(User.roles)).where(User.id == acr.user_id)
+    )
+    user = ur.scalar_one_or_none()
+    if not user or not user.is_active:
+        raise ValueError("invalid_grant")
+    if client.is_public and user.identity_kind != "customer":
+        raise ValueError("invalid_grant")
+
+    acr.consumed_at = datetime.now(tz=UTC)
+    out = await issue_tokens_for_user(
+        session,
+        client,
+        user=user,
+        scope=acr.scope,
+        ip=ip,
+        user_agent=user_agent,
+        login_method="authorization_code",
+    )
+    await session.flush()
+    return out
 
 
 async def revoke_refresh_token(session: AsyncSession, token: str | None) -> None:

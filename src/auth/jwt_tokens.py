@@ -122,3 +122,38 @@ def decode_access_token(token: str) -> dict[str, Any]:
         audience=auth_cfg.audience,
         issuer=auth_cfg.issuer.rstrip("/"),
     )
+
+
+def mint_browser_login_token(sub: str) -> tuple[str, int]:
+    """Short-lived JWT for the browser OAuth cookie (Authorization Code + PKCE pre-step)."""
+    now = datetime.now(tz=UTC)
+    exp = now + timedelta(minutes=auth_cfg.browser_login_minutes)
+    payload: dict[str, Any] = {
+        "iss": auth_cfg.issuer.rstrip("/"),
+        "sub": sub,
+        "aud": auth_cfg.audience,
+        "iat": int(now.timestamp()),
+        "exp": int(exp.timestamp()),
+        "token_use": "browser_login",
+    }
+    token = jwt.encode(
+        payload,
+        private_key_pem(),
+        algorithm="RS256",
+        headers={"kid": _KID, "typ": "JWT"},
+    )
+    ttl = int((exp - now).total_seconds())
+    return token, ttl
+
+
+def decode_browser_login_token(token: str) -> dict[str, Any]:
+    claims = jwt.decode(
+        token,
+        public_key_pem(),
+        algorithms=["RS256"],
+        audience=auth_cfg.audience,
+        issuer=auth_cfg.issuer.rstrip("/"),
+    )
+    if claims.get("token_use") != "browser_login":
+        raise jwt.InvalidTokenError("not a browser_login token")
+    return claims
