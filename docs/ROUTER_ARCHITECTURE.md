@@ -10,6 +10,12 @@
 | `dal.py` | Только доступ к БД: SQLAlchemy-запросы, без HTTP и без правил продукта. |
 | `enums.py` | Перечисления домена (по необходимости). |
 
+**Ответы и ошибки (REST):**
+
+- Успешные тела — **только Pydantic-схемы** (DTO), не ORM-объекты; маппинг ORM → схема в `actions` или отдельных `mappers.py`.
+- Коды HTTP по смыслу (`201` создание, `204` без тела, `400/401/403/404/409/422` и т.д.).
+- Ошибки — единый **envelope** `ApiErrorResponse` (`code`, `message`, опционально `details`, `request_id`), см. `src/api/error_schemas.py` и глобальные обработчики в `src/api/error_handlers.py`.
+
 Дополнительно:
 
 - У эндпоинтов в `router.py` задаются **`summary`** и **`description`** (и при необходимости `responses`) для OpenAPI.
