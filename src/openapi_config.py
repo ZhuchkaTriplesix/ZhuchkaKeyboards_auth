@@ -9,7 +9,7 @@ OPENAPI_TAGS: list[dict[str, str]] = [
     {"name": "health", "description": "Liveness and readiness probes."},
     {
         "name": "oauth",
-        "description": "OAuth2 token endpoint, revoke, OIDC discovery, JWKS.",
+        "description": "OAuth2 token endpoint, revoke, introspection (RFC 7662), OIDC discovery, JWKS.",
     },
     {"name": "oidc", "description": "OIDC discovery document and JWKS (same router as oauth)."},
     {
