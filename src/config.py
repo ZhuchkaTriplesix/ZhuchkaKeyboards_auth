@@ -77,6 +77,10 @@ class AuthCfg(CfgBase):
         self.password_grant_enabled: bool = self._get_bool("PASSWORD_GRANT_ENABLED", True)
         # Federated login (Telegram widget / Google ID token). Empty = disabled.
         self.telegram_bot_token: str = self._get("TELEGRAM_BOT_TOKEN", "").strip()
+        # Docker / k8s: prefer env so secrets are not in mounted config.ini.
+        _env_tg = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+        if _env_tg:
+            self.telegram_bot_token = _env_tg
         self.google_client_ids: str = self._get("GOOGLE_CLIENT_IDS", "").strip()
         self.public_oauth_client_id: str = self._get("PUBLIC_OAUTH_CLIENT_ID", "zhuchka-market-web")
         # Space-separated redirect URIs for the public storefront OAuth client (bootstrap).
